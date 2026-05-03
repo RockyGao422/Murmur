@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Murmur</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <span class="brand-icon">~</span>
+        <h1>Murmur</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btnSettings" class="icon-btn" title="设置">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M8 10a2 2 0 100-4 2 2 0 000 4z"/>
+            <path fill-rule="evenodd" d="M7.25 0a.75.75 0 01.75.75v1.32a5.76 5.76 0 011.5.63l.93-.94a.75.75 0 011.06 0l1.06 1.06a.75.75 0 010 1.06l-.94.93c.27.46.48.96.63 1.5h1.32a.75.75 0 01.75.75v1.5a.75.75 0 01-.75.75h-1.32c-.15.54-.36 1.04-.63 1.5l.94.93a.75.75 0 010 1.06l-1.06 1.06a.75.75 0 01-1.06 0l-.93-.94c-.46.27-.96.48-1.5.63v1.32a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-1.32a5.76 5.76 0 01-1.5-.63l-.93.94a.75.75 0 01-1.06 0L1.44 12.5a.75.75 0 010-1.06l.94-.93a5.76 5.76 0 01-.63-1.5H.5a.75.75 0 01-.75-.75v-1.5A.75.75 0 01.5 6h1.32c.15-.54.36-1.04.63-1.5l-.94-.93a.75.75 0 010-1.06L2.57 1.44a.75.75 0 011.06 0l.93.94c.46-.27.96-.48 1.5-.63V.5A.75.75 0 017.25 0h1.5zM8 3.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Current Page Status -->
+    <section class="status-section" id="statusSection">
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-label" id="statusLabel">加载中...</span>
+      </div>
+      <div class="status-detail" id="statusDetail" style="display: none;">
+        <span class="tool-name" id="toolName"></span>
+        <span class="domain-text" id="domainText"></span>
+      </div>
+    </section>
+
+    <!-- Current Session Timer -->
+    <section class="timer-section" id="timerSection" style="display: none;">
+      <div class="timer-display">
+        <span class="timer-icon">&#9202;</span>
+        <span class="timer-value" id="timerValue">00:00:00</span>
+      </div>
+      <div class="timer-label">当前会话</div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="actions-section" id="actionsSection" style="display: none;">
+      <button class="action-btn primary" id="btnComplete">完成会话</button>
+      <div class="action-row">
+        <button class="action-btn secondary" id="btnPause">暂停 1 小时</button>
+        <button class="action-btn danger" id="btnIgnore">忽略此网站</button>
+      </div>
+    </section>
+
+    <!-- Paused Banner -->
+    <section class="paused-banner" id="pausedBanner" style="display: none;">
+      <div class="paused-icon">&#9208;</div>
+      <div class="paused-text">检测已暂停</div>
+      <div class="paused-remaining" id="pausedRemaining"></div>
+      <button class="action-btn secondary small" id="btnResume">恢复检测</button>
+    </section>
+
+    <!-- Today Stats -->
+    <section class="stats-section">
+      <h2 class="section-title">今日统计</h2>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="statDuration">0分钟</div>
+          <div class="stat-label">使用时长</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statSessions">0</div>
+          <div class="stat-label">会话数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statEntries">0</div>
+          <div class="stat-label">已记录</div>
+        </div>
+        <div class="stat-card pending" id="statPendingCard">
+          <div class="stat-value" id="statPending">0</div>
+          <div class="stat-label">待处理</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="popup-footer">
+      <a href="#" id="linkOptions" class="footer-link">打开设置</a>
+      <span class="footer-version" id="footerVersion">v1.0.0</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

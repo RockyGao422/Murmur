@@ -1,0 +1,639 @@
+/**
+ * Murmur Options Page Styles
+ * Full-page settings UI with tab navigation.
+ */
+
+/* ============================================================================
+ * CSS Variables
+ * ============================================================================ */
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  --bg-hover: #f1f3f5;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --text-tertiary: #adb5bd;
+  --border-color: #dee2e6;
+  --accent: #4263eb;
+  --accent-hover: #3b5bdb;
+  --accent-light: #dbe4ff;
+  --success: #2f9e44;
+  --success-light: #d3f9d8;
+  --warning: #f08c00;
+  --warning-light: #fff3bf;
+  --danger: #e03131;
+  --danger-light: #ffe3e3;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1b1e;
+    --bg-secondary: #25262b;
+    --bg-tertiary: #2c2e33;
+    --bg-hover: #373a40;
+    --text-primary: #e9ecef;
+    --text-secondary: #adb5bd;
+    --text-tertiary: #6c757d;
+    --border-color: #373a40;
+    --accent: #5c7cfa;
+    --accent-hover: #748ffc;
+    --accent-light: #1c2541;
+    --success: #51cf66;
+    --success-light: #1b3a1e;
+    --warning: #fcc419;
+    --warning-light: #3d3000;
+    --danger: #ff6b6b;
+    --danger-light: #3d1e1e;
+  }
+}
+
+/* ============================================================================
+ * Base
+ * ============================================================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  min-height: 100vh;
+}
+
+.options-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+/* ============================================================================
+ * Header
+ * ============================================================================ */
+
+.options-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-icon {
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--accent);
+  font-family: 'Georgia', serif;
+}
+
+.brand h1 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.version {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+ * Tab Navigation
+ * ============================================================================ */
+
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ============================================================================
+ * Tab Content
+ * ============================================================================ */
+
+.tab-content {
+  display: none;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  border: 1px solid var(--border-color);
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.section-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+/* ============================================================================
+ * Tools List
+ * ============================================================================ */
+
+.tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.tool-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  transition: border-color 0.15s;
+}
+
+.tool-item:hover {
+  border-color: var(--accent);
+}
+
+.tool-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tool-item-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tool-item-domains {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.tool-item-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tool-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.tool-badge.no-web {
+  background: var(--bg-tertiary);
+  color: var(--text-tertiary);
+}
+
+/* ============================================================================
+ * Toggle Switch
+ * ============================================================================ */
+
+.toggle {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-tertiary);
+  border-radius: 22px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.toggle input:checked + .toggle-slider {
+  background: var(--accent);
+}
+
+.toggle input:checked + .toggle-slider::before {
+  transform: translateX(18px);
+}
+
+.toggle input:disabled + .toggle-slider {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ============================================================================
+ * Custom Domain Input
+ * ============================================================================ */
+
+.custom-domain-section {
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.custom-domain-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.text-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.text-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.text-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.custom-domains-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.domain-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.domain-tag .remove-tag {
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.domain-tag .remove-tag:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+/* ============================================================================
+ * Buttons
+ * ============================================================================ */
+
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.btn.secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn.secondary:hover {
+  background: var(--bg-tertiary);
+}
+
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn.danger:hover {
+  opacity: 0.9;
+}
+
+/* ============================================================================
+ * Ignored List
+ * ============================================================================ */
+
+.ignored-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ignored-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.ignored-domain {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ignored-date {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.ignored-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.btn-sm.remove {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.btn-sm.remove:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+
+/* ============================================================================
+ * Data Management
+ * ============================================================================ */
+
+.data-section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.data-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.data-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.export-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.danger-zone {
+  background: var(--danger-light);
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--danger);
+  border-bottom: 1px solid var(--danger);
+}
+
+.danger-zone h3 {
+  color: var(--danger);
+}
+
+.storage-info {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 10px 0;
+}
+
+/* ============================================================================
+ * Privacy Content
+ * ============================================================================ */
+
+.privacy-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.privacy-card {
+  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.privacy-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.privacy-card p,
+.privacy-card li {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+.privacy-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.privacy-card li {
+  padding: 3px 0;
+}
+
+.privacy-card li strong {
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+}
+
+.permission-note {
+  margin-top: 8px;
+  font-size: 12px !important;
+  color: var(--text-tertiary) !important;
+}
+
+/* ============================================================================
+ * Toast notification
+ * ============================================================================ */
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: toastIn 0.25s ease, toastOut 0.25s ease 2.25s;
+  pointer-events: none;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to { opacity: 0; transform: translateX(-50%) translateY(8px); }
+}
+
+/* ============================================================================
+ * Responsive
+ * ============================================================================ */
+
+@media (max-width: 600px) {
+  .options-container {
+    padding: 16px 12px;
+  }
+
+  .tab-nav {
+    flex-wrap: wrap;
+  }
+
+  .tab-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+}

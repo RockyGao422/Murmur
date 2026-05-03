@@ -55,7 +55,7 @@ class Sessionizer {
                 if (durationSeconds < MIN_SESSION_SECONDS) return@mapNotNull null
 
                 val status = when {
-                    !matchResult.needsConfirmation && durationSeconds >= SUSPECTED_THRESHOLD_SECONDS -> SessionStatus.ACTIVE
+                    !matchResult.needsConfirmation && durationSeconds >= SUSPECTED_THRESHOLD_SECONDS -> SessionStatus.PENDING
                     else -> SessionStatus.SUSPECTED
                 }
 
@@ -63,8 +63,8 @@ class Sessionizer {
                 val endedAt = rawSession.backgroundEvent?.timestamp ?: startedAt + durationMs
 
                 DetectedSession(
-                    sourcePlatform = SourcePlatform.MOBILE_APP,
-                    sourceKind = SourceKind.FOREGROUND_APP,
+                    sourcePlatform = SourcePlatform.ANDROID,
+                    sourceKind = SourceKind.APP,
                     toolId = matchResult.tool!!.id,
                     toolName = matchResult.tool!!.name,
                     packageName = rawSession.foregroundEvent.packageName,

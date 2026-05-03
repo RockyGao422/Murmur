@@ -2,27 +2,45 @@ import SwiftUI
 import AppKit
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    weak var detectionManager: DetectionManager?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let coordinator = AppDelegateCoordinator.shared
+        guard let detectionManager = coordinator.detectionManager,
+              let storageManager = coordinator.storageManager else {
+            print("[Murmur] Coordinator not configured — detection will not start")
+            return
+        }
+
+        // Load tool catalog into detection manager
+        let tools = storageManager.loadToolCatalog()
+        detectionManager.updateToolCatalog(tools)
+        let ignoredTargets = storageManager.loadIgnoredTargets()
+        detectionManager.updateIgnoredTargets(ignoredTargets)
+
+        // Bind detection → persistence
+        detectionManager.onNewSession = { session in
+            var sessions = storageManager.loadSessions()
+            sessions.append(session)
+            storageManager.saveSessions(sessions)
+        }
+
         // Request notification permission
         Task {
             _ = await NotificationManager.shared.requestPermission()
         }
 
         // Start detection automatically on launch
-        detectionManager?.startDetection()
+        detectionManager.startDetection()
 
         // Set up NSWorkspace notification observers
         let workspace = NSWorkspace.shared
         let notificationCenter = workspace.notificationCenter
-
         notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil,
             queue: .main
-        ) { [weak self] notification in
-            self?.detectionManager?.handleAppActivation(notification)
+        ) { [weak detectionManager] notification in
+            detectionManager?.handleAppActivation(notification)
         }
 
         // Schedule periodic pending reminders
@@ -30,13 +48,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        // Cleanup: stop detection, flush current session
-        detectionManager?.stopDetection()
-
-        // Remove workspace observers
+        AppDelegateCoordinator.shared.detectionManager?.stopDetection()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
-
-        // Cancel pending notifications
         NotificationManager.shared.cancelAllPendingReminders()
     }
 

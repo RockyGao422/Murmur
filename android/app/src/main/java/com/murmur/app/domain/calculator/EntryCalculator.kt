@@ -3,35 +3,34 @@ package com.murmur.app.domain.calculator
 import com.murmur.app.domain.model.*
 
 /**
- * Calculates the estimated time saved, extra cost, and net gain for a ledger entry.
- * Mirrors the calculation logic from other Murmur platforms.
+ * Calculates estimated time saved, extra cost, and net gain for a ledger entry.
+ * qualityScore (1-4) and moodWeight (0/2/6/8/10) are used for fatigue, not direct time multipliers.
  */
 object EntryCalculator {
 
     /**
-     * Calculate estimated values from a draft ledger entry.
+     * Calculate from a draft ledger entry.
+     * Uses quality and mood for fatigue scoring; time calculations use explicit minute estimates.
      */
     fun calculate(draft: LedgerEntryDraft): CalculatedEntry {
-        val qualityScore = OutputQuality.qualityScores[draft.quality] ?: 0.7f
-        val moodWeight = UserMood.moodWeights[draft.mood] ?: 1.0f
+        val activeSeconds = draft.activeSeconds
 
-        val activeSeconds = draft.activeSeconds.toFloat()
+        // Quality ratio: 1→0.2, 2→0.4, 3→0.7, 4→1.0 (used as rough efficiency multiplier)
+        val qualityRatio = (draft.quality.qualityScore.coerceIn(1, 4)).toFloat() / 4.0f
 
-        // Time saved: if output quality is good and mood is positive, we saved time
-        // Rough estimate: AI output that works directly saves ~80% of manual time
-        val timeSavedSeconds = (activeSeconds * qualityScore * moodWeight).toLong()
+        // Mood impact: 0→1.0, 2→0.85, 6→0.65, 8→0.55, 10→0.4 (higher moodWeight → worse efficiency)
+        val moodEfficiency = (1.0f - draft.mood.moodWeight / 20.0f).coerceIn(0.3f, 1.0f)
 
-        // Extra cost: when quality is poor or mood is negative, extra time is needed
-        // for rework, editing, or frustration
-        val qualityPenalty = (activeSeconds * (1.0f - qualityScore)).toLong()
-        val moodPenalty = (activeSeconds * maxOf(0.0f, 1.0f - moodWeight)).toLong()
+        // Estimated time saved: active time weighted by quality efficiency
+        val timeSavedSeconds = (activeSeconds.toFloat() * qualityRatio * moodEfficiency).toLong()
+
+        // Extra cost: penalty from low quality — higher qualityPenalty means more wasted time
+        val qualityPenalty = (activeSeconds.toFloat() * draft.quality.qualityPenalty / 14.0f).toLong()
+        val moodPenalty = (activeSeconds.toFloat() * draft.mood.moodWeight / 20.0f).toLong()
         val extraCostSeconds = qualityPenalty + moodPenalty
 
-        // Net gain
         val netGainSeconds = timeSavedSeconds - extraCostSeconds
-
-        // Has rework if quality required any edits
-        val hasRework = draft.quality != OutputQuality.USED_DIRECTLY
+        val hasRework = draft.quality != OutputQuality.DIRECT_USE
 
         return CalculatedEntry(
             timeSavedSeconds = timeSavedSeconds,
@@ -41,19 +40,7 @@ object EntryCalculator {
         )
     }
 
-    /**
-     * Calculate for an existing ledger entry (no draft needed).
-     */
-    fun calculate(
-        activeSeconds: Long,
-        quality: OutputQuality,
-        mood: UserMood
-    ): CalculatedEntry {
-        val draft = LedgerEntryDraft(
-            activeSeconds = activeSeconds,
-            quality = quality,
-            mood = mood
-        )
-        return calculate(draft)
+    fun calculate(activeSeconds: Long, quality: OutputQuality, mood: UserMood): CalculatedEntry {
+        return calculate(LedgerEntryDraft(activeSeconds = activeSeconds, quality = quality, mood = mood))
     }
 }

@@ -1,62 +1,53 @@
 package com.murmur.app.domain.model
 
 /**
- * Platform where AI usage was detected.
+ * Platform where AI usage was detected. Aligned with shared schema source_platform.
  */
-enum class SourcePlatform {
-    MOBILE_APP,
-    WEB,
-    DESKTOP,
-    UNKNOWN;
+enum class SourcePlatform(val value: String) {
+    MACOS("macos"),
+    ANDROID("android"),
+    BROWSER("browser");
 
     companion object {
         fun fromString(value: String): SourcePlatform {
-            return try {
-                valueOf(value.uppercase())
-            } catch (e: IllegalArgumentException) {
-                UNKNOWN
-            }
+            return entries.find { it.value == value }
+                ?: entries.find { it.name.equals(value, ignoreCase = true) }
+                ?: ANDROID
         }
     }
 }
 
 /**
- * Kind of source being tracked.
+ * Kind of source being tracked. Aligned with shared schema source_kind.
  */
-enum class SourceKind {
-    FOREGROUND_APP,
-    BROWSER_TAB,
-    DESKTOP_APP,
-    UNKNOWN;
+enum class SourceKind(val value: String) {
+    APP("app"),
+    WEB("web");
 
     companion object {
         fun fromString(value: String): SourceKind {
-            return try {
-                valueOf(value.uppercase())
-            } catch (e: IllegalArgumentException) {
-                UNKNOWN
-            }
+            return entries.find { it.value == value }
+                ?: entries.find { it.name.equals(value, ignoreCase = true) }
+                ?: APP
         }
     }
 }
 
 /**
- * Status of a detected session.
+ * Status of a detected session. Aligned with shared schema status.
  */
-enum class SessionStatus {
-    ACTIVE,
-    COMPLETED,
-    IGNORED,
-    SUSPECTED,
-    MERGED;
+enum class SessionStatus(val value: String) {
+    PENDING("pending"),
+    COMPLETED("completed"),
+    IGNORED("ignored"),
+    MERGED("merged"),
+    SUSPECTED("suspected");
 
     companion object {
         fun fromString(value: String): SessionStatus {
-            return try {
-                valueOf(value.uppercase())
-            } catch (e: IllegalArgumentException) {
-                SUSPECTED
-            }
+            return entries.find { it.value == value }
+                ?: entries.find { it.name.equals(value, ignoreCase = true) }
+                ?: PENDING
         }
     }
 }
@@ -64,26 +55,17 @@ enum class SessionStatus {
 /**
  * Quality rating for AI output.
  */
-enum class OutputQuality(val label: String) {
-    USED_DIRECTLY("直接用"),
-    MINOR_EDITS("小改"),
-    MAJOR_EDITS("大改"),
-    UNUSABLE("没用");
+enum class OutputQuality(val label: String, val value: String, val qualityScore: Int, val qualityPenalty: Int) {
+    DIRECT_USE("直接用", "direct_use", 4, 0),
+    MINOR_EDIT("小改", "minor_edit", 3, 4),
+    MAJOR_EDIT("大改", "major_edit", 2, 9),
+    USELESS("没用", "useless", 1, 14);
 
     companion object {
-        val qualityScores = mapOf(
-            USED_DIRECTLY to 1.0f,
-            MINOR_EDITS to 0.7f,
-            MAJOR_EDITS to 0.3f,
-            UNUSABLE to 0.0f
-        )
-
         fun fromString(value: String): OutputQuality {
-            return try {
-                valueOf(value.uppercase())
-            } catch (e: IllegalArgumentException) {
-                entries.find { it.label == value } ?: MINOR_EDITS
-            }
+            return entries.find { it.value == value }
+                ?: entries.find { it.name.equals(value, ignoreCase = true) }
+                ?: MINOR_EDIT
         }
     }
 }
@@ -91,16 +73,16 @@ enum class OutputQuality(val label: String) {
 /**
  * User mood when using AI.
  */
-enum class UserMood(val label: String) {
-    RELAXED("轻松"),
-    NEUTRAL("中性"),
-    IRRITATED("烦躁"),
-    TIRED("疲倦"),
-    ANXIOUS("焦虑");
+enum class UserMood(val label: String, val value: String, val moodWeight: Int) {
+    EASY("轻松", "easy", 0),
+    NEUTRAL("中性", "neutral", 2),
+    IRRITATED("烦躁", "irritated", 6),
+    TIRED("疲倦", "tired", 8),
+    ANXIOUS("焦虑", "anxious", 10);
 
     companion object {
         val moodWeights = mapOf(
-            RELAXED to 1.2f,
+            EASY to 1.2f,
             NEUTRAL to 1.0f,
             IRRITATED to 0.8f,
             TIRED to 0.7f,
@@ -176,8 +158,8 @@ data class MatchResult(
  */
 data class DetectedSession(
     val id: Long = 0,
-    val sourcePlatform: SourcePlatform = SourcePlatform.MOBILE_APP,
-    val sourceKind: SourceKind = SourceKind.FOREGROUND_APP,
+    val sourcePlatform: SourcePlatform = SourcePlatform.ANDROID,
+    val sourceKind: SourceKind = SourceKind.APP,
     val toolId: String = "",
     val toolName: String = "",
     val packageName: String = "",
@@ -200,11 +182,11 @@ data class LedgerEntry(
     val sessionId: Long = 0,
     val toolId: String = "",
     val toolName: String = "",
-    val sourcePlatform: SourcePlatform = SourcePlatform.MOBILE_APP,
+    val sourcePlatform: SourcePlatform = SourcePlatform.ANDROID,
     val localDate: String = "",
     val activeSeconds: Long = 0,
     val useCase: String = "",
-    val quality: OutputQuality = OutputQuality.MINOR_EDITS,
+    val quality: OutputQuality = OutputQuality.MINOR_EDIT,
     val mood: UserMood = UserMood.NEUTRAL,
     val timeSavedSeconds: Long = 0,
     val extraCostSeconds: Long = 0,
@@ -279,11 +261,11 @@ data class LedgerEntryDraft(
     val sessionId: Long = 0,
     val toolId: String = "",
     val toolName: String = "",
-    val sourcePlatform: SourcePlatform = SourcePlatform.MOBILE_APP,
+    val sourcePlatform: SourcePlatform = SourcePlatform.ANDROID,
     val localDate: String = "",
     val activeSeconds: Long = 0,
     val useCase: String = "",
-    val quality: OutputQuality = OutputQuality.USED_DIRECTLY,
+    val quality: OutputQuality = OutputQuality.DIRECT_USE,
     val mood: UserMood = UserMood.NEUTRAL,
     val inputCount: Int = 1,
     val outputCount: Int = 1,

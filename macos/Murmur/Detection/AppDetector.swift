@@ -31,42 +31,35 @@ class AppDetector: ObservableObject {
 
         updateCurrentApp(appName: appName, bundleId: bundleId)
 
-        // Create raw event
         let event = createRawEvent(appName: appName, bundleId: bundleId)
-
-        // Match against tool catalog
         let matchResult = toolMatcher.match(event: event)
 
         isAIApp = matchResult.matchedTool != nil
         currentToolName = matchResult.matchedTool?.name
 
-        // Feed to sessionizer
-        if let session = sessionizer.processEvent(event, matchResult: matchResult) {
-            // Post-process the session before notifying
-            var detectedSession = session
-
-            // If window title detection is enabled, try to get window title hash
-            if windowTitleDetector?.isEnabled == true {
-                if let titleHash = windowTitleDetector?.getCurrentWindowTitleHash() {
-                    detectedSession.windowTitleHash = titleHash
-                }
+        // processEvent now returns [DetectedSession] (may be empty, one, or two after midnight split)
+        let sessions = sessionizer.processEvent(event, matchResult: matchResult)
+        for var session in sessions {
+            if windowTitleDetector?.isEnabled == true,
+               let titleHash = windowTitleDetector?.getCurrentWindowTitleHash() {
+                session.windowTitleHash = titleHash
             }
-
-            onSessionDetected?(detectedSession)
+            onSessionDetected?(session)
         }
     }
 
     // MARK: - Handle App Termination
 
     func handleAppTermination(_ notification: Notification) {
-        if let flushed = sessionizer.flushCurrentSession() {
-            onSessionDetected?(flushed)
+        // flushCurrentSession now returns [DetectedSession]
+        for session in sessionizer.flushCurrentSession() {
+            onSessionDetected?(session)
         }
     }
 
     // MARK: - Force Flush Current Session
 
-    func forceFlushCurrentSession() -> DetectedSession? {
+    func forceFlushCurrentSession() -> [DetectedSession] {
         return sessionizer.flushCurrentSession()
     }
 
@@ -85,7 +78,7 @@ class AppDetector: ObservableObject {
         isAIApp = matchResult.matchedTool != nil
         currentToolName = matchResult.matchedTool?.name
 
-        if let session = sessionizer.processEvent(event, matchResult: matchResult) {
+        for session in sessionizer.processEvent(event, matchResult: matchResult) {
             onSessionDetected?(session)
         }
     }
@@ -116,8 +109,6 @@ class AppDetector: ObservableObject {
             windowId: nil
         )
     }
-
-    // MARK: - State Reset
 
     func reset() {
         sessionizer.reset()

@@ -20,10 +20,10 @@ data class DetectedSessionEntity(
     val id: Long = 0,
 
     @ColumnInfo(name = "source_platform")
-    val sourcePlatform: String = "MOBILE_APP",
+    val sourcePlatform: String = "android",
 
     @ColumnInfo(name = "source_kind")
-    val sourceKind: String = "FOREGROUND_APP",
+    val sourceKind: String = "app",
 
     @ColumnInfo(name = "tool_id")
     val toolId: String = "",
@@ -50,7 +50,7 @@ data class DetectedSessionEntity(
     val localDate: String = "",
 
     @ColumnInfo(name = "status")
-    val status: String = "SUSPECTED",
+    val status: String = "suspected",
 
     @ColumnInfo(name = "confidence")
     val confidence: Float = 0.0f,

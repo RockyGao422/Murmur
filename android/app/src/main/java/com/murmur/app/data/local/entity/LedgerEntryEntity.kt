@@ -28,7 +28,7 @@ data class LedgerEntryEntity(
     val toolName: String = "",
 
     @ColumnInfo(name = "source_platform")
-    val sourcePlatform: String = "MOBILE_APP",
+    val sourcePlatform: String = "android",
 
     @ColumnInfo(name = "local_date")
     val localDate: String = "",
@@ -40,10 +40,10 @@ data class LedgerEntryEntity(
     val useCase: String = "",
 
     @ColumnInfo(name = "quality")
-    val quality: String = "MINOR_EDITS",
+    val quality: String = "minor_edit",
 
     @ColumnInfo(name = "mood")
-    val mood: String = "NEUTRAL",
+    val mood: String = "neutral",
 
     @ColumnInfo(name = "time_saved_seconds")
     val timeSavedSeconds: Long = 0,

@@ -13,7 +13,7 @@ interface DetectedSessionDao {
     @Query("SELECT * FROM detected_sessions WHERE local_date = :localDate ORDER BY started_at DESC")
     suspend fun getSessionsByDateSync(localDate: String): List<DetectedSessionEntity>
 
-    @Query("SELECT * FROM detected_sessions WHERE status = 'ACTIVE' OR status = 'SUSPECTED' ORDER BY started_at DESC")
+    @Query("SELECT * FROM detected_sessions WHERE status = 'pending' OR status = 'suspected' ORDER BY started_at DESC")
     fun getPendingSessions(): Flow<List<DetectedSessionEntity>>
 
     @Query("SELECT * FROM detected_sessions WHERE status = :status ORDER BY started_at DESC")
@@ -32,8 +32,8 @@ interface DetectedSessionDao {
         SELECT
             COUNT(*) as sessionCount,
             COALESCE(SUM(active_seconds), 0) as totalActiveSeconds,
-            SUM(CASE WHEN status = 'ACTIVE' OR status = 'SUSPECTED' THEN 1 ELSE 0 END) as pendingCount,
-            SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END) as completedCount
+            SUM(CASE WHEN status = 'pending' OR status = 'suspected' THEN 1 ELSE 0 END) as pendingCount,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedCount
         FROM detected_sessions
         WHERE local_date = :localDate
     """)
@@ -56,7 +56,7 @@ interface DetectedSessionDao {
 
     @Query("""
         UPDATE detected_sessions
-        SET status = 'MERGED', updated_at = :updatedAt
+        SET status = 'merged', updated_at = :updatedAt
         WHERE id IN (:ids)
     """)
     suspend fun markAsMerged(ids: List<Long>, updatedAt: Long)

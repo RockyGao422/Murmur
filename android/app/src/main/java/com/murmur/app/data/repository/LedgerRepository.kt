@@ -78,7 +78,7 @@ class LedgerRepository(
 
             // Update session status to COMPLETED
             if (entry.sessionId > 0) {
-                sessionDao.updateStatus(entry.sessionId, "COMPLETED", now)
+                sessionDao.updateStatus(entry.sessionId, SessionStatus.COMPLETED.value, now)
             }
 
             // Recalculate daily summary
@@ -113,8 +113,8 @@ class LedgerRepository(
             localDate = localDate,
             totalSessions = sessions.size,
             totalActiveSeconds = sessions.sumOf { it.activeSeconds },
-            completedSessions = sessions.count { it.status == "COMPLETED" },
-            pendingSessions = sessions.count { it.status == "ACTIVE" || it.status == "SUSPECTED" },
+            completedSessions = sessions.count { it.status == "completed" },
+            pendingSessions = sessions.count { it.status == "pending" || it.status == "suspected" },
             netGainSeconds = aggregates.totalNetGain,
             fatigueScore = 0, // Will be calculated separately
             extraCostSeconds = aggregates.totalExtraCost,
@@ -158,12 +158,12 @@ class LedgerRepository(
             sessionId = sessionId,
             toolId = toolId,
             toolName = toolName,
-            sourcePlatform = sourcePlatform.name,
+            sourcePlatform = sourcePlatform.value,
             localDate = localDate,
             activeSeconds = activeSeconds,
             useCase = useCase,
-            quality = quality.name,
-            mood = mood.name,
+            quality = quality.value,
+            mood = mood.value,
             timeSavedSeconds = timeSavedSeconds,
             extraCostSeconds = extraCostSeconds,
             netGainSeconds = netGainSeconds,

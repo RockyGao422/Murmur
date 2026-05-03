@@ -2,8 +2,8 @@ import SwiftUI
 
 @main
 struct MurmurApp: App {
-    @StateObject private var detectionManager = DetectionManager()
-    @StateObject private var storageManager = StorageManager()
+    @StateObject private var detectionManager: DetectionManager
+    @StateObject private var storageManager: StorageManager
     @StateObject private var todayViewModel: TodayViewModel
     @StateObject private var inboxViewModel: InboxViewModel
     @StateObject private var statsViewModel: StatsViewModel
@@ -33,9 +33,12 @@ struct MurmurApp: App {
         _reviewViewModel = StateObject(wrappedValue: reviewVM)
         _settingsViewModel = StateObject(wrappedValue: settingsVM)
 
-        // Wire app delegate with detection manager
-        appDelegate = AppDelegate()
-        appDelegate.detectionManager = detection
+        // Wire app delegate via the adaptor — do NOT reassign @NSApplicationDelegateAdaptor.
+        // The adaptor creates the AppDelegate; we pass dependencies through a coordinator.
+        AppDelegateCoordinator.shared.configure(
+            detectionManager: detection,
+            storageManager: storage
+        )
     }
 
     var body: some Scene {
@@ -54,10 +57,22 @@ struct MurmurApp: App {
         .windowStyle(.automatic)
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button("关于 Murmur") {
-                    // About window
-                }
+                Button("关于 Murmur") {}
             }
         }
+    }
+}
+
+/// Lightweight coordinator that AppDelegate reads from instead of being reassigned.
+final class AppDelegateCoordinator {
+    static let shared = AppDelegateCoordinator()
+    weak var detectionManager: DetectionManager?
+    weak var storageManager: StorageManager?
+
+    private init() {}
+
+    func configure(detectionManager: DetectionManager, storageManager: StorageManager) {
+        self.detectionManager = detectionManager
+        self.storageManager = storageManager
     }
 }

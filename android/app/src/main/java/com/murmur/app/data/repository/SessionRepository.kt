@@ -51,7 +51,7 @@ class SessionRepository(private val dao: DetectedSessionDao) {
 
     suspend fun updateStatus(id: Long, status: SessionStatus) = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
-        dao.updateStatus(id, status.name, now)
+        dao.updateStatus(id, status.value, now)
     }
 
     suspend fun updateSession(session: DetectedSession) = withContext(Dispatchers.IO) {
@@ -91,7 +91,7 @@ class SessionRepository(private val dao: DetectedSessionDao) {
 
         // Mark source as merged
         val now = System.currentTimeMillis()
-        dao.updateStatus(sourceId, "MERGED", now)
+        dao.updateStatus(sourceId, SessionStatus.MERGED.value, now)
     }
 
     suspend fun getDistinctTools(startDate: String, endDate: String): List<String> {
@@ -122,8 +122,8 @@ class SessionRepository(private val dao: DetectedSessionDao) {
     private fun DetectedSession.toEntity(): DetectedSessionEntity {
         return DetectedSessionEntity(
             id = id,
-            sourcePlatform = sourcePlatform.name,
-            sourceKind = sourceKind.name,
+            sourcePlatform = sourcePlatform.value,
+            sourceKind = sourceKind.value,
             toolId = toolId,
             toolName = toolName,
             packageName = packageName,
@@ -132,7 +132,7 @@ class SessionRepository(private val dao: DetectedSessionDao) {
             endedAt = endedAt,
             activeSeconds = activeSeconds,
             localDate = localDate,
-            status = status.name,
+            status = status.value,
             confidence = confidence,
             createdAt = createdAt,
             updatedAt = updatedAt

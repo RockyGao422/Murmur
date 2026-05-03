@@ -88,7 +88,7 @@ fun SessionCard(
                 }
             }
 
-            PlatformBadge(platform = session.sourcePlatform.name)
+            PlatformBadge(platform = session.sourcePlatform.value)
         }
     }
 }

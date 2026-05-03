@@ -1,18 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Usage Stats Permission for AI app detection -->
+    <!-- Usage Stats Permission for AI app detection (P0) -->
     <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
-
-    <!-- Foreground Service for background detection (P1) -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <!-- Notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Wake lock for WorkManager -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!--
+        P1: FOREGROUND_SERVICE + DetectionForegroundService
+        Uncomment below for near-real-time detection (advanced mode only).
+        <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+        <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    -->
 
     <application
         android:name=".MurmurApplication"
@@ -34,11 +37,14 @@
             </intent-filter>
         </activity>
 
-        <!-- Foreground Service for background detection -->
-        <service
-            android:name=".service.DetectionForegroundService"
-            android:foregroundServiceType="specialUse"
-            android:exported="false" />
+        <!--
+            P1: DetectionForegroundService for near-real-time detection.
+            Uncomment when enabling foreground service (advanced mode).
+            <service
+                android:name=".service.DetectionForegroundService"
+                android:foregroundServiceType="specialUse"
+                android:exported="false" />
+        -->
 
     </application>
 

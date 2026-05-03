@@ -38,8 +38,9 @@ class DetectionManager: ObservableObject {
     }
 
     func stopDetection() {
-        // Flush current session before stopping
-        if let session = appDetector.forceFlushCurrentSession() {
+        // Flush current sessions before stopping
+        let flushed = appDetector.forceFlushCurrentSession()
+        for session in flushed {
             handleNewSession(session)
         }
         updateStatus(.disabled)
@@ -104,13 +105,22 @@ class DetectionManager: ObservableObject {
     // MARK: - Private
 
     private func loadToolCatalog() {
-        // This will be called by StorageManager providing the tools
+        // Catalog is loaded externally via updateToolCatalog() called from AppDelegate.
+        // Here we only ensure the catalog is not empty.
+        if toolMatcher.catalogCount == 0 {
+            print("[Murmur] Warning: Tool catalog is empty — detection may not identify AI apps. Load catalog via updateToolCatalog().")
+        }
     }
 
     private func handleNewSession(_ session: DetectedSession) {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            // Only keep a rolling window in memory; persistence is handled by onNewSession callback
             self.detectedSessions.append(session)
+            if self.detectedSessions.count > 200 {
+                self.detectedSessions = Array(self.detectedSessions.suffix(100))
+            }
+            // onNewSession callback should be bound to StorageManager.saveSessions by AppDelegate
             self.onNewSession?(session)
         }
     }

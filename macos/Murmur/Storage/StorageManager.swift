@@ -147,17 +147,23 @@ class StorageManager: ObservableObject {
             return
         }
 
-        // Fallback: load from shared directory
-        let sharedURL = URL(fileURLWithPath: "/Users/rockygao/QTM/Murmur/shared/tool-catalog.json")
-        if fileManager.fileExists(atPath: sharedURL.path),
-           let data = try? Data(contentsOf: sharedURL),
-           let catalog: ToolCatalog = try? jsonDecoder.decode(ToolCatalog.self, from: data) {
-            save(catalog, to: catalogURL)
-            print("[StorageManager] Initialized tool catalog from shared directory")
-            return
+        // Fallback: search relative to executable for development builds
+        if let executableURL = Bundle.main.executableURL {
+            let devSharedURL = executableURL
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .deletingLastPathComponent()
+                .appendingPathComponent("shared/tool-catalog.json")
+            if fileManager.fileExists(atPath: devSharedURL.path),
+               let data = try? Data(contentsOf: devSharedURL),
+               let catalog: ToolCatalog = try? jsonDecoder.decode(ToolCatalog.self, from: data) {
+                save(catalog, to: catalogURL)
+                print("[StorageManager] Initialized tool catalog from shared directory")
+                return
+            }
         }
 
-        print("[StorageManager] Warning: No default tool catalog found")
+        print("[StorageManager] Warning: No default tool catalog found. Ensure tool-catalog.json is in the app bundle.")
     }
 
     // MARK: - Data Export

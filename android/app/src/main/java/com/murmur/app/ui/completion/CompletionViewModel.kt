@@ -19,7 +19,7 @@ data class CompletionUiState(
     val error: String? = null,
     // Form fields
     val useCase: String = "",
-    val quality: OutputQuality = OutputQuality.USED_DIRECTLY,
+    val quality: OutputQuality = OutputQuality.DIRECT_USE,
     val mood: UserMood = UserMood.NEUTRAL,
     val activeMinutes: String = "",
     val inputCount: String = "1",
@@ -56,9 +56,9 @@ class CompletionViewModel(application: Application) : AndroidViewModel(applicati
             if (session != null) {
                 // Set default quality based on session confidence
                 val defaultQuality = when {
-                    session.confidence >= 0.9f -> OutputQuality.USED_DIRECTLY
-                    session.confidence >= 0.6f -> OutputQuality.MINOR_EDITS
-                    else -> OutputQuality.MINOR_EDITS
+                    session.confidence >= 0.9f -> OutputQuality.DIRECT_USE
+                    session.confidence >= 0.6f -> OutputQuality.MINOR_EDIT
+                    else -> OutputQuality.MINOR_EDIT
                 }
 
                 val minutes = session.activeSeconds / 60
@@ -94,7 +94,7 @@ class CompletionViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun setQuality(quality: OutputQuality) {
-        _uiState.update { it.copy(quality = quality, hasRework = quality != OutputQuality.USED_DIRECTLY) }
+        _uiState.update { it.copy(quality = quality, hasRework = quality != OutputQuality.DIRECT_USE) }
         recalculatePreview()
     }
 
@@ -170,7 +170,7 @@ class CompletionViewModel(application: Application) : AndroidViewModel(applicati
                     timeSavedSeconds = calculated.timeSavedSeconds,
                     extraCostSeconds = calculated.extraCostSeconds,
                     netGainSeconds = calculated.netGainSeconds,
-                    hasRework = state.hasRework || state.quality != OutputQuality.USED_DIRECTLY,
+                    hasRework = state.hasRework || state.quality != OutputQuality.DIRECT_USE,
                     inputCount = state.inputCount.toIntOrNull() ?: 1,
                     outputCount = state.outputCount.toIntOrNull() ?: 1,
                     notes = state.notes

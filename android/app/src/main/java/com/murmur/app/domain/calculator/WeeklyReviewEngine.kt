@@ -151,7 +151,7 @@ object WeeklyReviewEngine {
 
         // Quality insight
         if (entries.isNotEmpty()) {
-            val avgQuality = entries.map { OutputQuality.qualityScores[it.quality] ?: 0.7f }.average()
+            val avgQuality = entries.map { it.quality.qualityScore.toFloat() }.average()
             if (avgQuality >= 0.85f) {
                 insights.add(
                     Insight(

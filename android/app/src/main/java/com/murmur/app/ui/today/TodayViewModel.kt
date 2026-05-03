@@ -105,7 +105,7 @@ class TodayViewModel(application: Application) : AndroidViewModel(application) {
         val totalActiveSeconds = sessions.sumOf { it.activeSeconds }
         val sessionCount = sessions.size
         val pendingCount = sessions.count {
-            it.status == com.murmur.app.domain.model.SessionStatus.ACTIVE ||
+            it.status == com.murmur.app.domain.model.SessionStatus.PENDING ||
             it.status == com.murmur.app.domain.model.SessionStatus.SUSPECTED
         }
         val netGainSeconds = entries.sumOf { it.netGainSeconds }

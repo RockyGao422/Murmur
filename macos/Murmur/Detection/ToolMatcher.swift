@@ -9,6 +9,8 @@ class ToolMatcher {
         toolCatalog = tools
     }
 
+    var catalogCount: Int { toolCatalog.count }
+
     func updateIgnoredTargets(_ targets: [IgnoredTarget]) {
         ignoredTargets = targets
     }

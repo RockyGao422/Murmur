@@ -35,7 +35,7 @@ class CompletionViewModel: ObservableObject {
     var onSaved: ((LedgerEntry) -> Void)?
     var onCancel: (() -> Void)?
 
-    private let useCases: [(id: String, name: String)] = UseCaseCategory.allCases.map { ($0.rawValue, $0.displayName) }
+    private let useCaseOptions: [(id: String, name: String)] = UseCaseCategory.allCases.map { ($0.rawValue, $0.displayName) }
 
     init(session: DetectedSession, storageManager: StorageManager) {
         self.session = session
@@ -121,7 +121,7 @@ class CompletionViewModel: ObservableObject {
     // MARK: - Computed Properties
 
     var useCases: [(id: String, name: String)] {
-        return useCases
+        return useCaseOptions
     }
 
     var qualityOptions: [OutputQuality] {

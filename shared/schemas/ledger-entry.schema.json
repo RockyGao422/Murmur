@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://murmur.app/schemas/ledger-entry.json",
+  "title": "LedgerEntry",
+  "description": "A user-completed ledger entry derived from a detected session, recording AI effort savings.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "description": "Local unique identifier (UUID)" },
+    "detected_session_id": { "type": "string", "description": "Linked detected session ID" },
+    "source_platform": {
+      "type": "string",
+      "enum": ["macos", "android", "browser"],
+      "description": "Denormalized source platform"
+    },
+    "tool_id": { "type": "string", "description": "Tool ID" },
+    "tool_name": { "type": "string", "description": "Tool name snapshot" },
+    "use_case_id": { "type": "string", "description": "Use case category ID" },
+    "use_case_name": { "type": "string", "description": "Use case name snapshot" },
+    "estimated_saved_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Estimated time saved in minutes"
+    },
+    "prompt_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time spent writing prompts"
+    },
+    "review_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time spent reviewing AI output"
+    },
+    "edit_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time spent editing AI output"
+    },
+    "debug_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time spent debugging AI output"
+    },
+    "rework_minutes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Time spent reworking AI output"
+    },
+    "total_extra_cost_minutes": {
+      "type": "integer",
+      "description": "Total extra cost = prompt + review + edit + debug + rework"
+    },
+    "net_gain_minutes": {
+      "type": "integer",
+      "description": "Net gain = estimated_saved - total_extra_cost"
+    },
+    "quality": {
+      "type": "string",
+      "enum": ["direct_use", "minor_edit", "major_edit", "useless"],
+      "description": "Output quality assessment"
+    },
+    "quality_score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "description": "Quality numeric score (1=useless, 4=direct_use)"
+    },
+    "quality_penalty": {
+      "type": "integer",
+      "description": "Quality penalty for fatigue: 0/4/9/14"
+    },
+    "mood": {
+      "type": "string",
+      "enum": ["easy", "neutral", "irritated", "tired", "anxious"],
+      "description": "User's feeling after using AI"
+    },
+    "mood_weight": {
+      "type": "integer",
+      "description": "Mood weight for fatigue: 0/2/6/8/10"
+    },
+    "has_rework": {
+      "type": "boolean",
+      "description": "Whether significant rework occurred"
+    },
+    "note": { "type": "string", "description": "Optional user note" },
+    "local_date": { "type": "string", "format": "date" },
+    "timezone": { "type": "string" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  },
+  "required": [
+    "id", "detected_session_id", "tool_id", "tool_name",
+    "estimated_saved_minutes", "prompt_minutes", "review_minutes",
+    "edit_minutes", "debug_minutes", "rework_minutes",
+    "total_extra_cost_minutes", "net_gain_minutes", "quality", "mood",
+    "quality_score", "quality_penalty", "mood_weight", "has_rework",
+    "local_date", "created_at", "updated_at"
+  ]
+}

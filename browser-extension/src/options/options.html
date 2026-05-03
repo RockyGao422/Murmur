@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Murmur 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="options-container">
+    <!-- Header -->
+    <header class="options-header">
+      <div class="brand">
+        <span class="brand-icon">~</span>
+        <h1>Murmur 设置</h1>
+      </div>
+      <span class="version" id="versionDisplay">v1.0.0</span>
+    </header>
+
+    <!-- Navigation tabs -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="tools">AI 工具</button>
+      <button class="tab-btn" data-tab="ignored">已忽略</button>
+      <button class="tab-btn" data-tab="data">数据管理</button>
+      <button class="tab-btn" data-tab="privacy">隐私说明</button>
+    </nav>
+
+    <!-- Tools Tab -->
+    <section class="tab-content active" id="tab-tools">
+      <h2 class="section-title">AI 网站检测</h2>
+      <p class="section-desc">启用或禁用特定 AI 工具的自动检测。禁用后，访问该工具时将不会被记录。</p>
+
+      <div class="tools-list" id="toolsList">
+        <!-- Populated by JS -->
+      </div>
+
+      <div class="custom-domain-section">
+        <h3>自定义 AI 域名</h3>
+        <p class="section-desc">添加 Murmur 尚未识别的 AI 网站域名。</p>
+        <div class="input-row">
+          <input type="text" id="customDomainInput" placeholder="例如: my-ai-tool.com" class="text-input">
+          <button id="btnAddDomain" class="btn primary">添加</button>
+        </div>
+        <div class="custom-domains-list" id="customDomainsList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Ignored Tab -->
+    <section class="tab-content" id="tab-ignored">
+      <h2 class="section-title">已忽略的网站</h2>
+      <p class="section-desc">以下域名将不会触发 AI 检测。您可以随时移除以恢复追踪。</p>
+
+      <div class="ignored-list" id="ignoredList">
+        <p class="empty-state">暂无忽略的网站</p>
+      </div>
+    </section>
+
+    <!-- Data Management Tab -->
+    <section class="tab-content" id="tab-data">
+      <h2 class="section-title">数据管理</h2>
+
+      <div class="data-section">
+        <h3>导出数据</h3>
+        <p class="section-desc">将会话记录导出为 CSV 文件。</p>
+        <div class="export-options">
+          <button id="btnExportSessions" class="btn secondary">导出会话 (CSV)</button>
+          <button id="btnExportEntries" class="btn secondary">导出记录 (CSV)</button>
+          <button id="btnExportAll" class="btn secondary">导出全部 (JSON)</button>
+        </div>
+      </div>
+
+      <div class="data-section danger-zone">
+        <h3>危险操作</h3>
+        <p class="section-desc">清除所有检测数据，包括会话记录、统计和设置。此操作不可撤销。</p>
+        <div class="storage-info" id="storageInfo">
+          <span>存储用量: 计算中...</span>
+        </div>
+        <button id="btnClearData" class="btn danger">清除所有数据</button>
+      </div>
+    </section>
+
+    <!-- Privacy Tab -->
+    <section class="tab-content" id="tab-privacy">
+      <h2 class="section-title">隐私说明</h2>
+
+      <div class="privacy-content">
+        <div class="privacy-card">
+          <h3>&#128274; 数据最小化</h3>
+          <p>Murmur 只记录访问的域名和路径，不会存储完整的 URL（包括查询参数），也不会捕获任何页面内容或对话文本。</p>
+        </div>
+
+        <div class="privacy-card">
+          <h3>&#127968; 本地存储</h3>
+          <p>所有数据存储在浏览器的本地存储 (chrome.storage.local) 中，不会上传到任何服务器。Murmur 没有任何网络请求，完全离线运行。</p>
+        </div>
+
+        <div class="privacy-card">
+          <h3>&#128083; 无痕模式</h3>
+          <p>扩展不会在无痕浏览模式下运行，不会追踪任何隐私浏览会话。</p>
+        </div>
+
+        <div class="privacy-card">
+          <h3>&#9888;&#65039; 权限说明</h3>
+          <ul>
+            <li><strong>tabs</strong> — 检测当前标签页的 URL</li>
+            <li><strong>webNavigation</strong> — 监听页面导航事件</li>
+            <li><strong>storage</strong> — 本地存储会话数据</li>
+            <li><strong>alarms</strong> — 定期保存会话状态</li>
+            <li><strong>idle</strong> — 检测用户离开状态</li>
+          </ul>
+          <p class="permission-note">权限仅用于上述目的。Murmur 不会读取或修改网页内容。</p>
+        </div>
+
+        <div class="privacy-card">
+          <h3>&#128196; 数据导出与删除</h3>
+          <p>您可以随时导出或删除所有数据。在"数据管理"标签页中操作。</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>

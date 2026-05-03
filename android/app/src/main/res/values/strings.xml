@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Murmur</string>
+    <string name="app_description">本地 AI 使用追踪</string>
+
+    <!-- Navigation -->
+    <string name="nav_today">今日</string>
+    <string name="nav_inbox">待补全</string>
+    <string name="nav_stats">统计</string>
+    <string name="nav_tools">工具</string>
+    <string name="nav_settings">设置</string>
+
+    <!-- Today Screen -->
+    <string name="today_title">今日概览</string>
+    <string name="today_ai_usage_time">AI 使用时长</string>
+    <string name="today_detection_count">检测次数</string>
+    <string name="today_pending_count">待补全</string>
+    <string name="today_net_gain">净收益</string>
+    <string name="today_fatigue_index">疲劳指数</string>
+    <string name="today_no_data">今天还没有检测到 AI 使用</string>
+    <string name="today_no_data_hint">当你使用 AI 应用时，Murmur 会自动记录</string>
+    <string name="today_detection_active">检测运行中</string>
+    <string name="today_detection_paused">检测已暂停</string>
+    <string name="today_detection_no_permission">需要使用访问权限</string>
+    <string name="today_recent_sessions">最近检测</string>
+
+    <!-- Inbox Screen -->
+    <string name="inbox_title">待补全</string>
+    <string name="inbox_empty">没有待补全的会话</string>
+    <string name="inbox_suspected">疑似会话</string>
+    <string name="inbox_suspected_description">以下会话置信度较低，请确认</string>
+    <string name="inbox_merge_suggestion">发现可能重复的会话，建议合并</string>
+    <string name="inbox_batch_complete">批量补全</string>
+    <string name="inbox_batch_ignore">批量忽略</string>
+    <string name="inbox_swipe_complete">补全</string>
+    <string name="inbox_swipe_ignore">忽略</string>
+    <string name="inbox_confirm_ignore">确认忽略</string>
+    <string name="inbox_confirm_ignore_message">确定要忽略此会话吗？</string>
+
+    <!-- Completion Screen -->
+    <string name="completion_title">补全会话</string>
+    <string name="completion_tool">工具</string>
+    <string name="completion_platform">平台</string>
+    <string name="completion_date">日期</string>
+    <string name="completion_duration">使用时长（分钟）</string>
+    <string name="completion_use_case">使用场景</string>
+    <string name="completion_quality">产出质量</string>
+    <string name="completion_mood">使用心情</string>
+    <string name="completion_notes">备注</string>
+    <string name="completion_input_count">输入次数</string>
+    <string name="completion_output_count">输出次数</string>
+    <string name="completion_time_saved">节省时间</string>
+    <string name="completion_extra_cost">额外耗时</string>
+    <string name="completion_net_gain">净收益</string>
+    <string name="completion_has_rework">需要返工</string>
+    <string name="completion_preview">实时预览</string>
+    <string name="completion_save">保存</string>
+    <string name="completion_cancel">取消</string>
+
+    <!-- Quality options -->
+    <string name="quality_used_directly">直接用</string>
+    <string name="quality_minor_edits">小改</string>
+    <string name="quality_major_edits">大改</string>
+    <string name="quality_unusable">没用</string>
+
+    <!-- Mood options -->
+    <string name="mood_relaxed">轻松</string>
+    <string name="mood_neutral">中性</string>
+    <string name="mood_irritated">烦躁</string>
+    <string name="mood_tired">疲倦</string>
+    <string name="mood_anxious">焦虑</string>
+
+    <!-- Use case options -->
+    <string name="usecase_coding">编程</string>
+    <string name="usecase_writing">写作</string>
+    <string name="usecase_research">研究</string>
+    <string name="usecase_translation">翻译</string>
+    <string name="usecase_design">设计</string>
+    <string name="usecase_study">学习</string>
+    <string name="usecase_chat">聊天</string>
+    <string name="usecase_other">其他</string>
+
+    <!-- Stats Screen -->
+    <string name="stats_title">统计</string>
+    <string name="stats_range_7d">近 7 天</string>
+    <string name="stats_range_30d">近 30 天</string>
+    <string name="stats_total_sessions">总会话数</string>
+    <string name="stats_total_hours">总时长</string>
+    <string name="stats_total_net_gain">净收益</string>
+    <string name="stats_avg_fatigue">平均疲劳</string>
+    <string name="stats_daily_sessions">每日会话数</string>
+    <string name="stats_daily_minutes">每日使用分钟数</string>
+    <string name="stats_tool_distribution">工具分布</string>
+    <string name="stats_platform_distribution">平台分布</string>
+    <string name="stats_no_data">暂无数据</string>
+
+    <!-- Tools Screen -->
+    <string name="tools_title">工具管理</string>
+    <string name="tools_search">搜索工具…</string>
+    <string name="tools_add_custom">添加自定义工具</string>
+    <string name="tools_enabled_count">已启用 %d 个工具</string>
+    <string name="tools_detection_count">检测 %d 次</string>
+
+    <!-- Tool Detail Screen -->
+    <string name="tool_detail_title">工具详情</string>
+    <string name="tool_detail_name">名称</string>
+    <string name="tool_detail_aliases">别名</string>
+    <string name="tool_detail_packages">包名</string>
+    <string name="tool_detail_detection_enabled">启用检测</string>
+    <string name="tool_detail_detection_history">检测历史</string>
+    <string name="tool_detail_ignore">忽略此工具</string>
+    <string name="tool_detail_ignore_confirm">确定要忽略此工具吗？之后的检测将跳过它。</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">设置</string>
+    <string name="settings_permission">使用访问权限</string>
+    <string name="settings_permission_granted">已授权</string>
+    <string name="settings_permission_denied">未授权</string>
+    <string name="settings_permission_hint">需要「使用情况访问」权限才能自动检测 AI 应用使用</string>
+    <string name="settings_open_permission">打开系统设置</string>
+    <string name="settings_detection">检测开关</string>
+    <string name="settings_detection_description">关闭后将暂停自动检测</string>
+    <string name="settings_detection_frequency">检测频率</string>
+    <string name="settings_detection_frequency_15m">每 15 分钟</string>
+    <string name="settings_detection_frequency_30m">每 30 分钟</string>
+    <string name="settings_detection_frequency_1h">每小时</string>
+    <string name="settings_night_hours">免打扰时段</string>
+    <string name="settings_night_description">在此期间暂停检测通知</string>
+    <string name="settings_export_csv">导出 CSV</string>
+    <string name="settings_export_description">导出所有会话和补全记录</string>
+    <string name="settings_clear_data">清除所有数据</string>
+    <string name="settings_clear_data_description">删除所有检测记录和补全数据，此操作不可撤销</string>
+    <string name="settings_clear_confirm">确认清除</string>
+    <string name="settings_clear_confirm_message">确定要删除所有数据吗？此操作不可撤销。建议先导出 CSV 备份。</string>
+    <string name="settings_privacy">隐私说明</string>
+    <string name="settings_privacy_content">Murmur 是一款本地应用，所有数据仅存储在您的设备上。\n\n• 我们不会上传任何数据到云端\n• 我们不会收集任何个人信息\n• 我们仅检测您主动使用的 AI 应用\n• 我们不会记录键盘输入或屏幕内容\n• 使用情况访问权限仅用于识别前台应用\n\n您可以随时在系统设置中撤销此权限。</string>
+    <string name="settings_about">关于</string>
+    <string name="settings_about_version">版本 1.0.0</string>
+    <string name="settings_about_description">本地优先的 AI 使用追踪工具</string>
+    <string name="settings_foreground_service">前台服务</string>
+    <string name="settings_foreground_service_description">启用前台服务以确保后台检测持续运行</string>
+
+    <!-- Permission Screen -->
+    <string name="permission_title">授予使用访问权限</string>
+    <string name="permission_explanation">Murmur 需要「使用情况访问」权限来检测 AI 应用的使用。</string>
+    <string name="permission_what_we_detect">我们会检测：</string>
+    <string name="permission_what_we_detect_items">• 你正在使用哪个 AI 应用\n• 使用每个应用的时长\n• 使用频率和模式</string>
+    <string name="permission_what_we_dont_detect">我们不会检测：</string>
+    <string name="permission_what_we_dont_detect_items">• 键盘输入或屏幕内容\n• 聊天记录或对话内容\n• 其他非 AI 应用的使用\n• 任何个人隐私信息</string>
+    <string name="permission_supported_apps">支持的 AI 应用：</string>
+    <string name="permission_open_settings">打开系统设置</string>
+    <string name="permission_skip">稍后设置</string>
+
+    <!-- Common -->
+    <string name="common_minutes">分钟</string>
+    <string name="common_hours">小时</string>
+    <string name="common_seconds">秒</string>
+    <string name="common_times">次</string>
+    <string name="common_confirm">确认</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_delete">删除</string>
+    <string name="common_ignore">忽略</string>
+    <string name="common_merge">合并</string>
+    <string name="common_unknown">未知</string>
+    <string name="common_loading">加载中…</string>
+    <string name="common_error">出错了</string>
+    <string name="common_retry">重试</string>
+</resources>

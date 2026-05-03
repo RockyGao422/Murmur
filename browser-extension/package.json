@@ -1,0 +1,17 @@
+{
+  "name": "murmur-browser-extension",
+  "version": "1.0.0",
+  "description": "Murmur Browser Extension - 无缝感知 AI 网站使用情况",
+  "private": true,
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "echo 'No linter configured yet'",
+    "build": "node scripts/build.js"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.280",
+    "typescript": "^5.4.0"
+  },
+  "keywords": ["browser-extension", "ai-tracking", "productivity"],
+  "license": "MIT"
+}

@@ -1,0 +1,21 @@
+{
+  "description": "Golden fixtures — expected daily summary for 2026-05-03 based on detected_sessions.json and ledger_entries.json.",
+  "local_date": "2026-05-03",
+  "detected_session_count": 6,
+  "pending_session_count": 2,
+  "completed_session_count": 3,
+  "ignored_session_count": 0,
+  "suspected_session_count": 1,
+  "detected_active_seconds": 7920,
+  "distinct_tool_count": 6,
+  "tool_switch_count": 4,
+  "night_session_count": 1,
+  "total_entries": 3,
+  "total_saved_minutes": 95,
+  "total_extra_cost_minutes": 66,
+  "net_gain_minutes": 29,
+  "total_rework_minutes": 15,
+  "rework_rate": 0.33,
+  "fatigue_score": 48,
+  "updated_at": "2026-05-03T23:59:59+08:00"
+}

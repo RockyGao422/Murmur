@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "Murmur",
+  "version": "1.0.0",
+  "description": "无缝感知 AI 网站使用情况，自动记录并量化你的 AI 使用行为",
+  "author": "Murmur Contributors",
+  "permissions": [
+    "tabs",
+    "webNavigation",
+    "storage",
+    "alarms",
+    "idle",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "*://*.chatgpt.com/*",
+    "*://chat.openai.com/*",
+    "*://*.claude.ai/*",
+    "*://gemini.google.com/*",
+    "*://copilot.microsoft.com/*",
+    "*://github.com/*",
+    "*://openai.com/*",
+    "*://*.perplexity.ai/*",
+    "*://*.midjourney.com/*",
+    "*://*.poe.com/*",
+    "*://*.deepseek.com/*",
+    "*://chat.deepseek.com/*",
+    "*://*.doubao.com/*",
+    "*://kimi.moonshot.cn/*",
+    "*://tongyi.aliyun.com/*",
+    "*://yiyan.baidu.com/*",
+    "*://xinghuo.xfyun.cn/*",
+    "*://*.metaso.cn/*",
+    "*://yuanbao.tencent.com/*"
+  ],
+  "background": {
+    "service_worker": "src/background/service-worker.js"
+  },
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_icon": "icons/icon.svg",
+    "default_title": "Murmur"
+  },
+  "options_page": "src/options/options.html",
+  "icons": "icons/icon.svg",
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.chatgpt.com/*",
+        "*://chat.openai.com/*",
+        "*://*.claude.ai/*",
+        "*://gemini.google.com/*",
+        "*://copilot.microsoft.com/*",
+        "*://*.deepseek.com/*",
+        "*://*.doubao.com/*",
+        "*://kimi.moonshot.cn/*",
+        "*://tongyi.aliyun.com/*",
+        "*://yiyan.baidu.com/*",
+        "*://xinghuo.xfyun.cn/*",
+        "*://*.metaso.cn/*",
+        "*://yuanbao.tencent.com/*",
+        "*://*.perplexity.ai/*",
+        "*://*.poe.com/*"
+      ],
+      "js": ["src/content/prompt-counter.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "minimum_chrome_version": "88",
+  "incognito": "not_allowed"
+}

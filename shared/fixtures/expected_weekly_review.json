@@ -1,0 +1,71 @@
+{
+  "description": "Golden fixtures — expected weekly review for the week of 2026-04-27 to 2026-05-03.",
+  "week_start": "2026-04-27",
+  "week_end": "2026-05-03",
+  "detection_summary": {
+    "total_detected_sessions": 32,
+    "total_detected_active_minutes": 620,
+    "total_pending_sessions": 8,
+    "total_completed_entries": 18,
+    "completion_rate": 0.5625,
+    "distinct_tools_used": 7,
+    "night_session_count": 5
+  },
+  "ledger_summary": {
+    "total_estimated_saved_minutes": 480,
+    "total_extra_cost_minutes": 210,
+    "net_gain_minutes": 270,
+    "total_rework_minutes": 45,
+    "rework_rate": 0.22,
+    "avg_quality_score": 3.1
+  },
+  "insights": [
+    {
+      "type": "high_frequency_tool",
+      "title": "高频工具",
+      "tool_id": "cursor",
+      "tool_name": "Cursor",
+      "session_count": 12,
+      "message": "Cursor 是本周使用最多的 AI 工具，共检测到 12 次会话。"
+    },
+    {
+      "type": "high_switch",
+      "title": "高切换",
+      "tool_id": "deepseek",
+      "tool_name": "DeepSeek",
+      "message": "周二工具切换达 7 次，可能中断了工作流。"
+    },
+    {
+      "type": "pending_backlog",
+      "title": "待补全堆积",
+      "count": 8,
+      "message": "还有 8 条会话待补全，补全后才能计算真实净收益。"
+    },
+    {
+      "type": "best_use_case",
+      "title": "最省力场景",
+      "use_case_id": "code_review",
+      "use_case_name": "代码审查",
+      "entry_count": 5,
+      "avg_net_gain": 18,
+      "avg_quality": 3.4,
+      "message": "代码审查场景平均净收益最高，值得继续使用 AI。"
+    },
+    {
+      "type": "worst_use_case",
+      "title": "最亏时间场景",
+      "use_case_id": "content_writing",
+      "use_case_name": "内容写作",
+      "entry_count": 4,
+      "avg_net_gain": -5,
+      "rework_rate": 0.5,
+      "message": "内容写作返工率高达 50%，建议减少 AI 依赖或调整使用方式。"
+    }
+  ],
+  "recommendations": [
+    "继续在代码审查场景使用 AI，效率收益明显",
+    "内容写作场景返工率高，建议更精确的 prompt 或分步骤输出",
+    "减少深夜使用 Claude，避免影响睡眠质量",
+    "补全 8 条待补全会话以获取更完整的周报"
+  ]
+}

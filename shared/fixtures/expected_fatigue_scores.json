@@ -1,0 +1,18 @@
+{
+  "description": "Golden fixtures — expected fatigue scores computed from the sample data.",
+  "local_date": "2026-05-03",
+  "calculations": {
+    "ai_duration_score": { "value": 13, "max": 18, "formula": "min(18, detectedActiveMinutes / 180 * 18)", "detected_active_minutes": 132 },
+    "session_frequency_score": { "value": 12, "max": 14, "formula": "min(14, detectedSessionCount * 2)", "detected_session_count": 6 },
+    "tool_switch_score": { "value": 8, "max": 10, "formula": "min(10, toolSwitchCount * 2)", "tool_switch_count": 4 },
+    "night_usage_score": { "value": 4, "max": 10, "formula": "min(10, nightSessionCount * 4)", "night_session_count": 1 },
+    "pending_backlog_score": { "value": 4, "max": 8, "formula": "min(8, pendingSessionCount * 2)", "pending_session_count": 2 },
+    "rework_score": { "value": 4, "max": 15, "formula": "min(15, totalReworkMinutes / 60 * 15)", "total_rework_minutes": 15 },
+    "quality_score_avg": { "value": 2, "max": 14, "entries": [4, 9, 0] },
+    "mood_score_avg": { "value": 2, "max": 10, "entries": [0, 6, 0] },
+    "low_gain_score": { "value": 0, "max": 8, "condition": "completedEntryCount >= 3 AND netGainMinutes <= 0 ? 8 : 0", "net_gain_minutes": 29 }
+  },
+  "fatigue_score": 47,
+  "sample_quality": "partial",
+  "note": "Some scores come from detected sessions only, others from completed entries. Low entry count means fatigue score is approximate."
+}

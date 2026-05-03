@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://murmur.app/schemas/tool-catalog-item.json",
+  "title": "ToolCatalogItem",
+  "description": "An AI tool entry in the detection catalog with platform-specific matching rules.",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "description": "Unique tool identifier (slug)" },
+    "name": { "type": "string", "description": "Display name" },
+    "aliases": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Alternative names"
+    },
+    "macos_bundle_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "macOS bundle identifiers"
+    },
+    "macos_app_name_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "macOS app name match patterns"
+    },
+    "macos_title_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "macOS window title match patterns"
+    },
+    "android_package_names": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Android package names"
+    },
+    "web_domains": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Browser domain names"
+    },
+    "url_patterns": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "URL match patterns (glob style)"
+    },
+    "default_enabled": {
+      "type": "boolean",
+      "description": "Whether detection is enabled by default"
+    },
+    "detection_enabled": {
+      "type": "boolean",
+      "description": "Current detection enabled state"
+    },
+    "is_default": {
+      "type": "boolean",
+      "description": "Whether this is a built-in default tool"
+    },
+    "user_defined": {
+      "type": "boolean",
+      "description": "Whether this tool was created by the user"
+    },
+    "sort_order": {
+      "type": "integer",
+      "description": "Display sort order"
+    },
+    "confidence": {
+      "type": "object",
+      "properties": {
+        "bundle_id": { "type": "number", "minimum": 0, "maximum": 1 },
+        "package_name": { "type": "number", "minimum": 0, "maximum": 1 },
+        "domain": { "type": "number", "minimum": 0, "maximum": 1 },
+        "url_pattern": { "type": "number", "minimum": 0, "maximum": 1 },
+        "app_name": { "type": "number", "minimum": 0, "maximum": 1 },
+        "title": { "type": "number", "minimum": 0, "maximum": 1 },
+        "user_mapping": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    }
+  },
+  "required": ["id", "name", "default_enabled", "detection_enabled", "is_default", "user_defined"]
+}

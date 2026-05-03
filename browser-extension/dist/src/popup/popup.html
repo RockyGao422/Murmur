@@ -54,6 +54,52 @@
       </div>
     </section>
 
+    <!-- Completion Form (hidden until user clicks "完成会话") -->
+    <section class="completion-section" id="completionSection" style="display: none;">
+      <h2 class="section-title">补全会话</h2>
+      <div class="completion-form">
+        <div class="form-row">
+          <label>工具</label>
+          <span id="compToolName"></span>
+        </div>
+        <div class="form-row">
+          <label>域名</label>
+          <span id="compDomain"></span>
+        </div>
+        <div class="form-row">
+          <label>时长</label>
+          <span id="compDuration"></span>
+        </div>
+        <div class="form-row">
+          <label for="compSavedMinutes">估计节省(分钟)</label>
+          <input type="number" id="compSavedMinutes" value="15" min="0" max="480" />
+        </div>
+        <div class="form-row">
+          <label for="compQuality">结果质量</label>
+          <select id="compQuality">
+            <option value="direct_use">直接用</option>
+            <option value="minor_edit" selected>小改</option>
+            <option value="major_edit">大改</option>
+            <option value="useless">没用</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="compMood">感受</label>
+          <select id="compMood">
+            <option value="easy">轻松</option>
+            <option value="neutral" selected>中性</option>
+            <option value="irritated">烦躁</option>
+            <option value="tired">疲倦</option>
+            <option value="anxious">焦虑</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button class="action-btn secondary" id="btnCompCancel">取消</button>
+          <button class="action-btn primary" id="btnCompSave">保存</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Paused Banner -->
     <section class="paused-banner" id="pausedBanner" style="display: none;">
       <div class="paused-icon">&#9208;</div>

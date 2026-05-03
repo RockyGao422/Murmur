@@ -73,7 +73,27 @@ function createRawEvent(eventType, tabId, windowId, domain, urlPattern, isIncogn
     windowTitle: null,
     tabId,
     windowId,
+    metadata,
   };
+}
+
+/**
+ * Helper: get a local date string (YYYY-MM-DD) in the given timezone.
+ * Falls back to system timezone if none provided.
+ * @param {Date|string|number} date
+ * @param {string} [timeZone] — IANA timezone, default system
+ * @returns {string}
+ */
+function getLocalDateString(date, timeZone) {
+  const d = date instanceof Date ? date : new Date(date);
+  try {
+    return d.toLocaleDateString('en-CA', { timeZone: timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone });
+  } catch (_) {
+    // Fallback for unknown timezone
+    const offset = d.getTimezoneOffset();
+    const local = new Date(d.getTime() - offset * 60000);
+    return local.toISOString().slice(0, 10);
+  }
 }
 
 // ============================================================================
@@ -90,10 +110,12 @@ async function onTabActivated(activeInfo) {
     }
     const url = tab.url || tab.pendingUrl || null;
     const { domain, urlPattern } = normalizeUrl(url);
+    const previousDomain = currentTab.domain;
     currentTab = { tabId: tab.id, windowId: tab.windowId, domain, urlPattern, isIncognito: false };
 
     if (windowFocused) {
-      const rawEvent = createRawEvent(EventType.TAB_ACTIVATED, tab.id, tab.windowId, domain, urlPattern, false);
+      const rawEvent = createRawEvent(EventType.TAB_ACTIVATED, tab.id, tab.windowId, domain, urlPattern, false,
+        { previousDomain: previousDomain !== domain ? previousDomain : null });
       await processEvent(rawEvent);
     }
   } catch (err) {
@@ -109,13 +131,15 @@ async function onTabUpdated(tabId, changeInfo, tab) {
   const url = tab.url || changeInfo.url || null;
   if (!url) return;
   const { domain, urlPattern } = normalizeUrl(url);
+  const previousDomain = tab.active ? currentTab.domain : null;
 
   if (tab.active) {
     currentTab = { tabId: tab.id, windowId: tab.windowId, domain, urlPattern, isIncognito: false };
   }
 
   if (windowFocused && tab.active) {
-    const rawEvent = createRawEvent(EventType.TAB_UPDATED, tabId, tab.windowId, domain, urlPattern, false, { status: changeInfo.status });
+    const rawEvent = createRawEvent(EventType.TAB_UPDATED, tabId, tab.windowId, domain, urlPattern, false,
+      { status: changeInfo.status, previousDomain: previousDomain !== domain ? previousDomain : null });
     await processEvent(rawEvent);
   }
 }
@@ -159,13 +183,16 @@ async function onNavigationCommitted(details) {
   if (details.frameId !== 0) return;
 
   const { domain, urlPattern } = normalizeUrl(details.url);
+  const previousDomain = (currentTab.tabId === details.tabId) ? currentTab.domain : null;
+
   if (currentTab.tabId === details.tabId) {
     currentTab.domain = domain;
     currentTab.urlPattern = urlPattern;
   }
 
   if (windowFocused) {
-    const rawEvent = createRawEvent(EventType.NAVIGATION_COMMITTED, details.tabId, 0, domain, urlPattern, false, { transitionType: details.transitionType });
+    const rawEvent = createRawEvent(EventType.NAVIGATION_COMMITTED, details.tabId, 0, domain, urlPattern, false,
+      { transitionType: details.transitionType, previousDomain: previousDomain !== domain ? previousDomain : null });
     await processEvent(rawEvent);
   }
 }
@@ -215,7 +242,8 @@ async function pauseDetection(durationMs) {
   pauseUntil = Date.now() + durationMs;
   await chrome.storage.local.set({ 'murmur_pause_until': pauseUntil });
   for (const session of getActiveSessions()) {
-    pauseSession(session.domain);
+    const key = session.rawDomain || session.domain;
+    if (key) pauseSession(key);
   }
 }
 

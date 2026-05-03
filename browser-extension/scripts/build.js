@@ -74,17 +74,53 @@ try {
   }
 
   if (!manifest.icons) {
-    console.warn('  ⚠ No icons defined in manifest');
-  } else {
-    // Validate icon files exist
-    const iconPaths = typeof manifest.icons === 'string' ? [manifest.icons] : Object.values(manifest.icons);
-    for (const iconPath of iconPaths) {
+    console.error('  ✗ icons field is required in manifest');
+    process.exit(1);
+  }
+
+  // icons must be an object with size keys (Chrome requirement)
+  if (typeof manifest.icons !== 'object' || Array.isArray(manifest.icons)) {
+    console.error('  ✗ icons must be an object with size keys, e.g. {"16": "...", "48": "...", "128": "..."}');
+    process.exit(1);
+  }
+
+  // Validate all icon paths exist and are PNG (SVG not supported by Chrome for icons)
+  const requiredSizes = ['16', '48', '128'];
+  for (const size of requiredSizes) {
+    const iconPath = manifest.icons[size];
+    if (!iconPath) {
+      console.warn(`  ⚠ No icon for size ${size}`);
+      continue;
+    }
+    if (iconPath.endsWith('.svg')) {
+      console.error(`  ✗ SVG icons not supported by Chrome: ${iconPath}. Use PNG format.`);
+      process.exit(1);
+    }
+    if (!fs.existsSync(path.join(ROOT, iconPath))) {
+      console.error(`  ✗ Icon file missing: ${iconPath}`);
+      process.exit(1);
+    }
+  }
+  console.log('  ✓ Icon files verified (PNG, size-object format)');
+
+  // Also validate action default_icon if present
+  if (manifest.action && manifest.action.default_icon) {
+    const actionIcon = manifest.action.default_icon;
+    if (typeof actionIcon === 'string') {
+      console.error('  ✗ action.default_icon must be a size object, not a string');
+      process.exit(1);
+    }
+    for (const iconPath of Object.values(actionIcon)) {
+      if (iconPath.endsWith('.svg')) {
+        console.error(`  ✗ SVG icons not supported by Chrome: ${iconPath}`);
+        process.exit(1);
+      }
       if (!fs.existsSync(path.join(ROOT, iconPath))) {
         console.error(`  ✗ Icon file missing: ${iconPath}`);
         process.exit(1);
       }
     }
-    console.log('  ✓ Icon files verified');
+    console.log('  ✓ Action icon files verified');
   }
 
   const requiredPermissions = ['tabs', 'storage'];

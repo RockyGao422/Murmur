@@ -45,8 +45,9 @@ async function reloadSettings() {
  * @returns {Object} session matching DetectedSession schema
  */
 function makeSession(id, tool, domain, urlPattern, startedAt, confidence) {
-  const localDate = new Date(startedAt).toISOString().slice(0, 10);
-  const hour = new Date(startedAt).getHours();
+  const d = new Date(startedAt);
+  const localDate = d.toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+  const hour = d.getHours();
   return {
     id,
     sourcePlatform: SourcePlatform.BROWSER,
@@ -243,7 +244,19 @@ async function processEvent(rawEvent) {
   switch (eventType) {
     case EventType.TAB_ACTIVATED:
     case EventType.TAB_UPDATED:
-    case EventType.NAVIGATION_COMMITTED:
+    case EventType.NAVIGATION_COMMITTED: {
+      // If user navigated away from a previous domain, pause/end its session
+      const prevDomain = rawEvent.metadata?.previousDomain;
+      if (prevDomain && prevDomain !== domain && activeSessions.has(prevDomain)) {
+        // End the old session if it's an AI site that we're leaving
+        const prevMatch = isAIDomain(prevDomain) ? await matchEvent(
+          { domain: prevDomain, urlPattern: prevDomain + '/*' }, settings?.toolState
+        ) : { tool: null, shouldIgnore: false };
+        if (prevMatch.tool) {
+          await endSession(prevDomain);
+        }
+      }
+
       if (match.tool && !match.shouldIgnore) {
         if (activeSessions.has(domain)) {
           activateSession(domain);
@@ -255,6 +268,7 @@ async function processEvent(rawEvent) {
         if (activeSessions.has(domain)) pauseSession(domain);
       }
       break;
+    }
 
     case EventType.TAB_REMOVED:
       if (activeSessions.has(domain)) return await endSession(domain);

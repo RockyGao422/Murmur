@@ -81,13 +81,9 @@ enum class UserMood(val label: String, val value: String, val moodWeight: Int) {
     ANXIOUS("焦虑", "anxious", 10);
 
     companion object {
-        val moodWeights = mapOf(
-            EASY to 1.2f,
-            NEUTRAL to 1.0f,
-            IRRITATED to 0.8f,
-            TIRED to 0.7f,
-            ANXIOUS to 0.6f
-        )
+        // moodWeight is now a constructor parameter on each enum value (0/2/6/8/10).
+        // The old moodWeights float map has been removed to avoid confusion
+        // with the new fatigue-oriented integer weights.
 
         fun fromString(value: String): UserMood {
             return try {

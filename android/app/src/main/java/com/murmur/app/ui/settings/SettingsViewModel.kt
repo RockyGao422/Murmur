@@ -93,6 +93,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setDetectionInterval(minutes: Int) {
         viewModelScope.launch {
             settingsRepo.setDetectionIntervalMinutes(minutes)
+            // Reschedule WorkManager to apply new interval
+            val app = getApplication<com.murmur.app.MurmurApplication>()
+            app.rescheduleDetectionWorker(minutes)
         }
     }
 

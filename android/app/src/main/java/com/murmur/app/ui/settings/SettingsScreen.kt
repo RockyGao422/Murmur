@@ -153,15 +153,15 @@ fun SettingsScreen(
             )
         }
 
-        // Foreground service
-        item {
-            SettingsSwitchItem(
-                title = stringResource(R.string.settings_foreground_service),
-                subtitle = stringResource(R.string.settings_foreground_service_description),
-                checked = uiState.foregroundServiceEnabled,
-                onCheckedChange = { viewModel.setForegroundService(it) }
-            )
-        }
+        // P1: Foreground service — disabled until manifest permissions and service logic are implemented
+        // item {
+        //     SettingsSwitchItem(
+        //         title = stringResource(R.string.settings_foreground_service),
+        //         subtitle = stringResource(R.string.settings_foreground_service_description),
+        //         checked = uiState.foregroundServiceEnabled,
+        //         onCheckedChange = { viewModel.setForegroundService(it) }
+        //     )
+        // }
 
         // Notifications toggle
         item {

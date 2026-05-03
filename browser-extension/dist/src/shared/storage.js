@@ -76,7 +76,7 @@ async function updateSession(id, updates) {
     sessions[index] = {
       ...sessions[index],
       ...updates,
-      updatedAt: Date.now(),
+      updatedAt: updates.updatedAt || new Date().toISOString(),
     };
     await chrome.storage.local.set({ [STORAGE_KEYS.SESSIONS]: sessions });
     return sessions[index];
@@ -139,8 +139,13 @@ async function getEntries() {
 async function saveEntry(entry) {
   try {
     const entries = await getEntries();
-    // Replace existing entry for same session if exists
-    const existingIdx = entries.findIndex((e) => e.sessionId === entry.sessionId);
+    // Dedup by detectedSessionId (new model) with fallback to sessionId (legacy)
+    const existingIdx = entries.findIndex((e) =>
+      (entry.detectedSessionId && e.detectedSessionId === entry.detectedSessionId) ||
+      (entry.detectedSessionId && e.sessionId === entry.detectedSessionId) ||
+      (entry.sessionId && e.sessionId === entry.sessionId) ||
+      (entry.sessionId && e.detectedSessionId === entry.sessionId)
+    );
     if (existingIdx !== -1) {
       entries[existingIdx] = entry;
     } else {

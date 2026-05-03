@@ -243,7 +243,7 @@ async function handleMessage(message, sender) {
       const activeSessions = getActiveSessions();
 
       // Get today's summary
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toLocaleDateString('en-CA');
       const todaySessions = await getSessionsByDate(today);
       const todayEntries = await getEntriesByDate(today);
       const todaySummary = await getTodaySummary();
@@ -345,7 +345,7 @@ async function handleMessage(message, sender) {
     }
 
     case 'getTodayStats': {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toLocaleDateString('en-CA');
       const sessions = await getSessionsByDate(today);
       const entries = await getEntriesByDate(today);
       const summary = await getTodaySummary();
@@ -468,6 +468,10 @@ async function handleMessage(message, sender) {
     }
 
     case 'connectNative': {
+      const settings = await getSettings();
+      if (!settings.nativeMessagingEnabled) {
+        return { success: false, error: 'Native messaging is not enabled in settings' };
+      }
       if (typeof nativeMessaging !== 'undefined') {
         nativeMessaging.connect();
         return { success: true, data: { connected: nativeMessaging.isConnected() } };
@@ -479,6 +483,26 @@ async function handleMessage(message, sender) {
       await endAllSessions();
       await clearAllData();
       return { success: true };
+    }
+
+    // ========================================================================
+    // Ledger Entry save
+    // ========================================================================
+    case 'saveEntry': {
+      if (!payload || !payload.entry) {
+        return { success: false, error: 'No entry data provided' };
+      }
+      try {
+        await saveEntry(payload.entry);
+        // Update the linked session to completed
+        const sessionId = payload.entry.detectedSessionId || payload.entry.sessionId;
+        if (sessionId) {
+          await updateSession(sessionId, { status: SessionStatus.COMPLETED, updatedAt: new Date().toISOString() });
+        }
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
     }
 
     // ========================================================================

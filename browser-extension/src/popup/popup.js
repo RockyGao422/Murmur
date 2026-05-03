@@ -225,8 +225,11 @@ async function refreshStatus() {
     elements.timerSection.style.display = 'block';
     elements.actionsSection.style.display = 'flex';
 
-    // Start live timer
-    startTimer(currentSessionData.startTime);
+    // Normalize startTime: may be ISO string (new model) or epoch ms (legacy)
+    const startMs = typeof currentSessionData.startTime === 'string'
+      ? new Date(currentSessionData.startTime).getTime()
+      : currentSessionData.startTime;
+    startTimer(startMs);
 
     elements.pausedBanner.style.display = 'none';
     stopPauseCountdown();
@@ -271,13 +274,89 @@ async function refreshStatus() {
 
 /**
  * Handle "Complete Session" button click.
+ * Shows completion form instead of immediately ending.
  */
+let completionSessionData = null;
+
 async function onCompleteSession() {
-  const response = await sendMessage('quickComplete');
-  if (response.success) {
-    stopTimer();
-    await refreshStatus();
-  }
+  const status = await sendMessage('getStatus');
+  if (!status.success || !status.data || !status.data.currentSession) return;
+
+  const s = status.data.currentSession;
+  completionSessionData = s;
+
+  // Fill completion form and show it
+  document.getElementById('compToolName').textContent = s.toolName || '';
+  document.getElementById('compDomain').textContent = s.domain || '';
+  document.getElementById('compDuration').textContent = formatDuration(s.duration || 0);
+  document.getElementById('compSavedMinutes').value = '15';
+  document.getElementById('compQuality').value = 'minor_edit';
+  document.getElementById('compMood').value = 'neutral';
+
+  document.getElementById('actionsSection').style.display = 'none';
+  document.getElementById('completionSection').style.display = 'block';
+}
+
+async function onSaveCompletion() {
+  if (!completionSessionData) return;
+
+  // End the session first
+  const domain = completionSessionData.domain;
+  const endResp = await sendMessage('quickComplete', { domain });
+  if (!endResp.success) return;
+
+  const estimatedSavedMinutes = parseInt(document.getElementById('compSavedMinutes').value) || 15;
+  const quality = document.getElementById('compQuality').value;
+  const mood = document.getElementById('compMood').value;
+  const durationMinutes = Math.floor((completionSessionData.duration || 0) / 60);
+
+  // Calculate derived fields
+  const promptMinutes = Math.min(durationMinutes || 5, 5);
+  const reviewMinutes = 5;
+  const extraCost = promptMinutes + reviewMinutes;
+  const netGain = estimatedSavedMinutes - extraCost;
+
+  const entry = {
+    id: crypto.randomUUID ? crypto.randomUUID() : 'le-' + Date.now(),
+    detectedSessionId: endResp.data?.id || completionSessionData.id,
+    sourcePlatform: SourcePlatform?.BROWSER || 'browser',
+    toolId: completionSessionData.toolId || '',
+    toolName: completionSessionData.toolName || '',
+    useCaseId: 'other',
+    useCaseName: '其他',
+    estimatedSavedMinutes,
+    promptMinutes,
+    reviewMinutes,
+    editMinutes: 0,
+    debugMinutes: 0,
+    reworkMinutes: 0,
+    totalExtraCostMinutes: extraCost,
+    netGainMinutes: netGain,
+    quality,
+    qualityScore: quality === 'direct_use' ? 4 : quality === 'minor_edit' ? 3 : quality === 'major_edit' ? 2 : 1,
+    qualityPenalty: quality === 'direct_use' ? 0 : quality === 'minor_edit' ? 4 : quality === 'major_edit' ? 9 : 14,
+    mood,
+    moodWeight: mood === 'easy' ? 0 : mood === 'neutral' ? 2 : mood === 'irritated' ? 6 : mood === 'tired' ? 8 : 10,
+    hasRework: quality === 'useless' || netGain < 0,
+    note: null,
+    localDate: new Date().toLocaleDateString('en-CA'),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  await sendMessage('saveEntry', { entry });
+
+  document.getElementById('completionSection').style.display = 'none';
+  completionSessionData = null;
+  stopTimer();
+  await refreshStatus();
+}
+
+function onCancelCompletion() {
+  document.getElementById('completionSection').style.display = 'none';
+  document.getElementById('actionsSection').style.display = 'flex';
+  completionSessionData = null;
 }
 
 /**
@@ -352,6 +431,8 @@ async function init() {
   document.getElementById('btnResume').addEventListener('click', onResumeDetection);
   document.getElementById('btnSettings').addEventListener('click', onOpenSettings);
   document.getElementById('linkOptions').addEventListener('click', onLinkOptions);
+  document.getElementById('btnCompSave').addEventListener('click', onSaveCompletion);
+  document.getElementById('btnCompCancel').addEventListener('click', onCancelCompletion);
 
   // Load status
   await refreshStatus();

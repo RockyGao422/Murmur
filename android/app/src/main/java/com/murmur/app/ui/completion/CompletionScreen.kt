@@ -95,7 +95,7 @@ fun CompletionScreen(
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            InfoRow(label = stringResource(R.string.completion_platform), value = session.sourcePlatform.name)
+                            InfoRow(label = stringResource(R.string.completion_platform), value = session.sourcePlatform.value)
                             InfoRow(label = stringResource(R.string.completion_date), value = session.localDate)
                             InfoRow(
                                 label = stringResource(R.string.completion_duration),

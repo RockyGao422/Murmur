@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="18" y1="12" x2="112" y2="118" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="0.55" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="card" x1="35" y1="26" x2="94" y2="104" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf2ff"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#0f172a" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)"/>
+  <circle cx="96" cy="28" r="18" fill="#7dd3fc" opacity="0.26"/>
+  <circle cx="24" cy="96" r="22" fill="#a7f3d0" opacity="0.18"/>
+
+  <g filter="url(#shadow)">
+    <rect x="34" y="24" width="60" height="80" rx="14" fill="url(#card)"/>
+    <rect x="44" y="37" width="28" height="6" rx="3" fill="#4f46e5"/>
+    <rect x="44" y="50" width="40" height="5" rx="2.5" fill="#cbd5e1"/>
+    <rect x="44" y="61" width="34" height="5" rx="2.5" fill="#dbe4ef"/>
+  </g>
+
+  <path d="M37 82H48L55 65L66 92L75 74H91" fill="none" stroke="#22c55e" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="92" cy="82" r="7" fill="#22c55e"/>
+  <path d="M74 33C78 33 81 30 81 26C81 30 84 33 88 33C84 33 81 36 81 40C81 36 78 33 74 33Z" fill="#60a5fa"/>
+  <path d="M30 32C33 32 35 30 35 27C35 30 37 32 40 32C37 32 35 34 35 37C35 34 33 32 30 32Z" fill="#ffffff" opacity="0.82"/>
+</svg>

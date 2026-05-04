@@ -151,21 +151,36 @@ data class MatchResult(
 
 /**
  * Detected session — represents a period of AI tool usage.
+ * Aligned with shared/schemas/detected-session.schema.json canonical fields.
  */
 data class DetectedSession(
     val id: Long = 0,
+    val canonicalId: String = "",
     val sourcePlatform: SourcePlatform = SourcePlatform.ANDROID,
     val sourceKind: SourceKind = SourceKind.APP,
+    val detectorId: String = "android.usagestats",
     val toolId: String = "",
     val toolName: String = "",
+    val rawAppName: String? = null,
     val packageName: String = "",
+    val rawPackageName: String? = null,
+    val rawDomain: String? = null,
+    val rawUrlPattern: String? = null,
     val detectedAt: Long = 0,
     val startedAt: Long = 0,
     val endedAt: Long = 0,
     val activeSeconds: Long = 0,
+    val idleSeconds: Long = 0,
     val localDate: String = "",
+    val timezone: String = "",
+    val isNight: Boolean = false,
     val status: SessionStatus = SessionStatus.SUSPECTED,
     val confidence: Float = 0.0f,
+    val mergedIntoSessionId: String? = null,
+    val promptCount: Int? = null,
+    val sourceFingerprint: String? = null,
+    val deviceId: String = "",
+    val syncStatus: String = "local_only",
     val createdAt: Long = 0,
     val updatedAt: Long = 0
 )
@@ -321,25 +336,24 @@ enum class InsightType {
 }
 
 /**
- * Use case categories.
+ * Use case categories. Aligned with macOS canonical set.
  */
-enum class UseCase(val label: String) {
-    CODING("编程"),
-    WRITING("写作"),
-    RESEARCH("研究"),
-    TRANSLATION("翻译"),
-    DESIGN("设计"),
-    STUDY("学习"),
-    CHAT("聊天"),
-    OTHER("其他");
+enum class UseCase(val value: String, val label: String) {
+    CODE_GENERATION("code_generation", "代码生成"),
+    CODE_REVIEW("code_review", "代码审查"),
+    DEBUGGING("debugging", "调试排错"),
+    CONTENT_WRITING("content_writing", "内容写作"),
+    CONTENT_TRANSLATION("content_translation", "内容翻译"),
+    RESEARCH("research", "研究调研"),
+    LEARNING("learning", "学习理解"),
+    CREATIVE("creative", "创意生成"),
+    OTHER("other", "其他");
 
     companion object {
         fun fromString(value: String): UseCase {
-            return try {
-                valueOf(value.uppercase())
-            } catch (e: IllegalArgumentException) {
-                entries.find { it.label == value } ?: OTHER
-            }
+            return entries.find { it.value == value }
+                ?: entries.find { it.name.equals(value, ignoreCase = true) }
+                ?: OTHER
         }
 
         fun fromLabel(label: String): UseCase {

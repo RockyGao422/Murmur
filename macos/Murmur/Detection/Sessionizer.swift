@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 class Sessionizer {
     private var currentSession: DetectedSession?
@@ -8,6 +9,7 @@ class Sessionizer {
     private let timezone: TimeZone
     private let dateFormatter: ISO8601DateFormatter
     private let localDateFormatter: DateFormatter
+    private let deviceId: String
 
     init(idGenerator: @escaping () -> String = { UUID().uuidString }) {
         self.idGenerator = idGenerator
@@ -17,6 +19,36 @@ class Sessionizer {
         self.localDateFormatter = DateFormatter()
         self.localDateFormatter.dateFormat = "yyyy-MM-dd"
         self.localDateFormatter.timeZone = timezone
+        self.deviceId = Sessionizer.loadOrCreateDeviceId()
+    }
+
+    /// Load or create a per-installation device identifier stored in UserDefaults.
+    static func loadOrCreateDeviceId() -> String {
+        let key = "murmur_device_id"
+        if let existing = UserDefaults.standard.string(forKey: key), !existing.isEmpty {
+            return existing
+        }
+        let newId = UUID().uuidString
+        UserDefaults.standard.set(newId, forKey: key)
+        return newId
+    }
+
+    /// Compute a source fingerprint for idempotent dedup using SHA-256.
+    private func computeFingerprint(session: DetectedSession) -> String {
+        let raw = [
+            session.sourcePlatform.rawValue,
+            session.sourceKind.rawValue,
+            deviceId,
+            session.toolId ?? "",
+            session.rawBundleId ?? session.rawDomain ?? "",
+            String(Int(session.startedAt.timeIntervalSince1970 / 5)),
+            String(Int(session.endedAt.timeIntervalSince1970 / 5)),
+            String(session.activeSeconds)
+        ].joined(separator: "|")
+
+        let data = Data(raw.utf8)
+        let digest = SHA256.hash(data: data)
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 
     // MARK: - Process Event
@@ -183,6 +215,7 @@ class Sessionizer {
         }
 
         s.updatedAt = Date()
+        s.sourceFingerprint = computeFingerprint(session: s)
         return s
     }
 
@@ -216,6 +249,11 @@ class Sessionizer {
             status: .pending,
             mergedIntoSessionId: nil,
             promptCount: 0,
+            deviceId: deviceId,
+            sourceSessionId: nil,
+            sourceFingerprint: nil,
+            syncStatus: .localOnly,
+            syncedAt: nil,
             createdAt: now,
             updatedAt: now
         )

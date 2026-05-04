@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "description": "Browsers that should NOT be treated as AI tools on any platform.",
+  "macos_bundle_ids": [
+    "com.apple.Safari",
+    "com.google.Chrome",
+    "com.microsoft.edgemac",
+    "company.thebrowser.Browser",
+    "org.mozilla.firefox",
+    "com.brave.Browser",
+    "com.operasoftware.Opera",
+    "com.vivaldi.Vivaldi"
+  ],
+  "android_package_names": [
+    "com.android.chrome",
+    "com.chrome.beta",
+    "com.chrome.dev",
+    "com.microsoft.emmx",
+    "org.mozilla.firefox",
+    "com.brave.browser",
+    "com.opera.browser"
+  ],
+  "web_domains": []
+}

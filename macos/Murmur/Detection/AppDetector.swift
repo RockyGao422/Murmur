@@ -13,6 +13,23 @@ class AppDetector: ObservableObject {
 
     var onSessionDetected: ((DetectedSession) -> Void)?
 
+    /// Bundle IDs of known browsers — these should never be treated as AI tools.
+    private let browserBundleIds: Set<String> = [
+        "com.apple.Safari",
+        "com.google.Chrome",
+        "com.microsoft.edgemac",
+        "company.thebrowser.Browser",
+        "org.mozilla.firefox",
+        "com.brave.Browser",
+        "com.operasoftware.Opera",
+        "com.vivaldi.Vivaldi",
+    ]
+
+    private func isBrowser(_ bundleId: String?) -> Bool {
+        guard let bundleId else { return false }
+        return browserBundleIds.contains(bundleId)
+    }
+
     init(toolMatcher: ToolMatcher, sessionizer: Sessionizer, windowTitleDetector: WindowTitleDetector? = nil) {
         self.toolMatcher = toolMatcher
         self.sessionizer = sessionizer
@@ -30,6 +47,18 @@ class AppDetector: ObservableObject {
         let bundleId = runningApp.bundleIdentifier
 
         updateCurrentApp(appName: appName, bundleId: bundleId)
+
+        // Browsers are never AI tools — skip matching entirely
+        guard !isBrowser(bundleId) else {
+            isAIApp = false
+            currentToolName = nil
+            // Flush current session if we had one (switched to browser)
+            let flushed = sessionizer.flushCurrentSession()
+            for session in flushed {
+                onSessionDetected?(session)
+            }
+            return
+        }
 
         let event = createRawEvent(appName: appName, bundleId: bundleId)
         let matchResult = toolMatcher.match(event: event)
@@ -71,6 +100,13 @@ class AppDetector: ObservableObject {
         let bundleId = frontApp.bundleIdentifier
 
         updateCurrentApp(appName: appName, bundleId: bundleId)
+
+        // Skip browsers
+        guard !isBrowser(bundleId) else {
+            isAIApp = false
+            currentToolName = nil
+            return
+        }
 
         let event = createRawEvent(appName: appName, bundleId: bundleId)
         let matchResult = toolMatcher.match(event: event)

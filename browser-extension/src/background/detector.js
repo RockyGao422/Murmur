@@ -1,21 +1,16 @@
 /**
  * @fileoverview Browser event detector for Murmur Browser Extension.
  * Privacy-first: only domain and URL patterns are captured, never full URLs or page titles.
- * Listens to tab, window, and navigation events to detect AI website usage.
+ * Tracks multiple AI tabs via activeTabs Map keyed by "windowId:tabId".
+ * Canonical event types aligned with shared/schemas/raw-event.schema.json.
  */
 
 // ============================================================================
 // State
 // ============================================================================
 
-let currentTab = {
-  tabId: null,
-  windowId: null,
-  domain: null,
-  urlPattern: null,
-  isIncognito: false,
-};
-
+let activeTabs = new Map();           // "windowId:tabId" → { tabId, windowId, domain, urlPattern }
+let currentActiveTabKey = null;       // "windowId:tabId" of the foreground tab
 let windowFocused = true;
 let detectionActive = false;
 let pauseUntil = 0;
@@ -24,17 +19,11 @@ let pauseUntil = 0;
 // URL Normalization
 // ============================================================================
 
-/**
- * Strip URL to domain and pattern only. Never stores full URL.
- * @param {string|null} rawUrl
- * @returns {{domain: string|null, urlPattern: string|null}}
- */
 function normalizeUrl(rawUrl) {
   if (!rawUrl) return { domain: null, urlPattern: null };
   try {
     const u = new URL(rawUrl);
     const domain = u.hostname.replace(/^www\./, '');
-    // urlPattern: hostname + first path segment only (for distinguishing sub-pages)
     const pathParts = u.pathname.split('/').filter(Boolean);
     const urlPattern = pathParts.length > 0
       ? `${domain}/${pathParts[0]}/*`
@@ -46,19 +35,9 @@ function normalizeUrl(rawUrl) {
 }
 
 // ============================================================================
-// RawEvent Factory (privacy-first: no full URL, no title)
+// RawEvent Factory
 // ============================================================================
 
-/**
- * @param {string} eventType
- * @param {number} tabId
- * @param {number} windowId
- * @param {string|null} domain
- * @param {string|null} urlPattern
- * @param {boolean} isIncognito
- * @param {Object|null} metadata
- * @returns {Object}
- */
 function createRawEvent(eventType, tabId, windowId, domain, urlPattern, isIncognito, metadata = null) {
   return {
     eventId: generateUUID(),
@@ -77,25 +56,6 @@ function createRawEvent(eventType, tabId, windowId, domain, urlPattern, isIncogn
   };
 }
 
-/**
- * Helper: get a local date string (YYYY-MM-DD) in the given timezone.
- * Falls back to system timezone if none provided.
- * @param {Date|string|number} date
- * @param {string} [timeZone] — IANA timezone, default system
- * @returns {string}
- */
-function getLocalDateString(date, timeZone) {
-  const d = date instanceof Date ? date : new Date(date);
-  try {
-    return d.toLocaleDateString('en-CA', { timeZone: timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone });
-  } catch (_) {
-    // Fallback for unknown timezone
-    const offset = d.getTimezoneOffset();
-    const local = new Date(d.getTime() - offset * 60000);
-    return local.toISOString().slice(0, 10);
-  }
-}
-
 // ============================================================================
 // Event Handlers
 // ============================================================================
@@ -104,18 +64,30 @@ async function onTabActivated(activeInfo) {
   if (!detectionActive || Date.now() < pauseUntil) return;
   try {
     const tab = await chrome.tabs.get(activeInfo.tabId);
-    if (chrome.runtime.lastError || !tab || tab.incognito) {
-      currentTab.isIncognito = true;
-      return;
-    }
+    if (chrome.runtime.lastError || !tab || tab.incognito) return;
     const url = tab.url || tab.pendingUrl || null;
     const { domain, urlPattern } = normalizeUrl(url);
-    const previousDomain = currentTab.domain;
-    currentTab = { tabId: tab.id, windowId: tab.windowId, domain, urlPattern, isIncognito: false };
+    const newKey = makeKey(tab.windowId, tab.id);
 
+    // Track this tab
+    activeTabs.set(newKey, { tabId: tab.id, windowId: tab.windowId, domain, urlPattern });
+
+    // Pause previous foreground tab's session
+    if (currentActiveTabKey && currentActiveTabKey !== newKey && windowFocused) {
+      const prevTab = activeTabs.get(currentActiveTabKey);
+      if (prevTab) {
+        const prevEvent = createRawEvent(EventType.TAB_ACTIVATED, prevTab.tabId, prevTab.windowId, prevTab.domain, prevTab.urlPattern, false,
+          { previousDomain: prevTab.domain });
+        prevEvent.eventType = EventType.WINDOW_FOCUS_CHANGED;
+        prevEvent.metadata = { focused: false };
+        await processEvent(prevEvent);
+      }
+    }
+
+    // Activate new tab
+    currentActiveTabKey = newKey;
     if (windowFocused) {
-      const rawEvent = createRawEvent(EventType.TAB_ACTIVATED, tab.id, tab.windowId, domain, urlPattern, false,
-        { previousDomain: previousDomain !== domain ? previousDomain : null });
+      const rawEvent = createRawEvent(EventType.TAB_ACTIVATED, tab.id, tab.windowId, domain, urlPattern, false, {});
       await processEvent(rawEvent);
     }
   } catch (err) {
@@ -131,15 +103,14 @@ async function onTabUpdated(tabId, changeInfo, tab) {
   const url = tab.url || changeInfo.url || null;
   if (!url) return;
   const { domain, urlPattern } = normalizeUrl(url);
-  const previousDomain = tab.active ? currentTab.domain : null;
+  const key = makeKey(tab.windowId, tabId);
 
-  if (tab.active) {
-    currentTab = { tabId: tab.id, windowId: tab.windowId, domain, urlPattern, isIncognito: false };
-  }
+  // Update tracking
+  activeTabs.set(key, { tabId, windowId: tab.windowId, domain, urlPattern });
 
-  if (windowFocused && tab.active) {
+  if (windowFocused && tab.active && currentActiveTabKey === key) {
     const rawEvent = createRawEvent(EventType.TAB_UPDATED, tabId, tab.windowId, domain, urlPattern, false,
-      { status: changeInfo.status, previousDomain: previousDomain !== domain ? previousDomain : null });
+      { status: changeInfo.status });
     await processEvent(rawEvent);
   }
 }
@@ -148,32 +119,38 @@ async function onTabRemoved(tabId, removeInfo) {
   if (!detectionActive || Date.now() < pauseUntil) return;
   if (removeInfo.isWindowClosing) return;
 
-  const domain = currentTab.tabId === tabId ? currentTab.domain : null;
-  if (!domain) return;
+  const key = makeKey(removeInfo.windowId, tabId);
+  const tabInfo = activeTabs.get(key);
+  if (!tabInfo) return;
 
-  const rawEvent = createRawEvent(EventType.TAB_REMOVED, tabId, removeInfo.windowId, domain, currentTab.urlPattern, false);
+  const rawEvent = createRawEvent(EventType.TAB_REMOVED, tabId, removeInfo.windowId, tabInfo.domain, tabInfo.urlPattern, false);
   await processEvent(rawEvent);
 
-  if (currentTab.tabId === tabId) {
-    currentTab = { tabId: null, windowId: null, domain: null, urlPattern: null, isIncognito: false };
-  }
+  activeTabs.delete(key);
+  if (currentActiveTabKey === key) currentActiveTabKey = null;
 }
 
 async function onWindowFocusChanged(windowId) {
   if (windowId === chrome.windows.WINDOW_ID_NONE) {
     windowFocused = false;
-    const rawEvent = createRawEvent(EventType.WINDOW_FOCUS_CHANGED, currentTab.tabId, currentTab.windowId, currentTab.domain, currentTab.urlPattern, false, { focused: false });
-    await processEvent(rawEvent);
+    if (currentActiveTabKey) {
+      const tabInfo = activeTabs.get(currentActiveTabKey);
+      const rawEvent = createRawEvent(EventType.WINDOW_FOCUS_CHANGED, tabInfo?.tabId || 0, 0, tabInfo?.domain || null, tabInfo?.urlPattern || null, false, { focused: false });
+      await processEvent(rawEvent);
+    }
   } else {
     windowFocused = true;
     try {
       const tabs = await chrome.tabs.query({ active: true, windowId });
       if (tabs.length > 0 && !tabs[0].incognito) {
         const { domain, urlPattern } = normalizeUrl(tabs[0].url);
-        currentTab = { tabId: tabs[0].id, windowId: tabs[0].windowId, domain, urlPattern, isIncognito: false };
+        const newKey = makeKey(tabs[0].windowId, tabs[0].id);
+        activeTabs.set(newKey, { tabId: tabs[0].id, windowId: tabs[0].windowId, domain, urlPattern });
+        currentActiveTabKey = newKey;
       }
     } catch (_) { /* ignore */ }
-    const rawEvent = createRawEvent(EventType.WINDOW_FOCUS_CHANGED, currentTab.tabId, currentTab.windowId, currentTab.domain, currentTab.urlPattern, false, { focused: true });
+    const tabInfo = currentActiveTabKey ? activeTabs.get(currentActiveTabKey) : null;
+    const rawEvent = createRawEvent(EventType.WINDOW_FOCUS_CHANGED, tabInfo?.tabId || 0, windowId, tabInfo?.domain || null, tabInfo?.urlPattern || null, false, { focused: true });
     await processEvent(rawEvent);
   }
 }
@@ -183,15 +160,14 @@ async function onNavigationCommitted(details) {
   if (details.frameId !== 0) return;
 
   const { domain, urlPattern } = normalizeUrl(details.url);
-  const previousDomain = (currentTab.tabId === details.tabId) ? currentTab.domain : null;
+  const key = makeKey(details.windowId || 0, details.tabId);
+  const previousDomain = activeTabs.get(key)?.domain || null;
 
-  if (currentTab.tabId === details.tabId) {
-    currentTab.domain = domain;
-    currentTab.urlPattern = urlPattern;
-  }
+  // Track this tab
+  activeTabs.set(key, { tabId: details.tabId, windowId: details.windowId || 0, domain, urlPattern });
 
-  if (windowFocused) {
-    const rawEvent = createRawEvent(EventType.NAVIGATION_COMMITTED, details.tabId, 0, domain, urlPattern, false,
+  if (windowFocused && currentActiveTabKey === key) {
+    const rawEvent = createRawEvent(EventType.NAVIGATION_COMMITTED, details.tabId, details.windowId || 0, domain, urlPattern, false,
       { transitionType: details.transitionType, previousDomain: previousDomain !== domain ? previousDomain : null });
     await processEvent(rawEvent);
   }
@@ -211,7 +187,9 @@ async function startDetection() {
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tabs.length > 0 && !tabs[0].incognito) {
       const { domain, urlPattern } = normalizeUrl(tabs[0].url);
-      currentTab = { tabId: tabs[0].id, windowId: tabs[0].windowId, domain, urlPattern, isIncognito: false };
+      const key = makeKey(tabs[0].windowId, tabs[0].id);
+      activeTabs.set(key, { tabId: tabs[0].id, windowId: tabs[0].windowId, domain, urlPattern });
+      currentActiveTabKey = key;
     }
   } catch (err) {
     console.error('[Murmur Detector] Initial tab query error:', err);
@@ -241,9 +219,8 @@ function stopDetection() {
 async function pauseDetection(durationMs) {
   pauseUntil = Date.now() + durationMs;
   await chrome.storage.local.set({ 'murmur_pause_until': pauseUntil });
-  for (const session of getActiveSessions()) {
-    const key = session.rawDomain || session.domain;
-    if (key) pauseSession(key);
+  for (const [key] of activeSessions) {
+    pauseSession(key);
   }
 }
 
@@ -253,17 +230,27 @@ function resumeDetection() {
 }
 
 function getCurrentSession() {
-  if (!currentTab.domain) return null;
-  return getSessionForDomain(currentTab.domain);
+  if (!currentActiveTabKey) return null;
+  return getSessionForKey(currentActiveTabKey);
 }
 
 function isOnAISite() {
-  if (!currentTab.domain) return false;
-  return isAIDomain(currentTab.domain);
+  if (!currentActiveTabKey) return false;
+  const tabInfo = activeTabs.get(currentActiveTabKey);
+  if (!tabInfo?.domain) return false;
+  return isAIDomain(tabInfo.domain);
 }
 
 function getCurrentTabInfo() {
-  return { ...currentTab };
+  if (!currentActiveTabKey) return { tabId: null, windowId: null, domain: null, urlPattern: null, isIncognito: false };
+  const tabInfo = activeTabs.get(currentActiveTabKey);
+  return {
+    tabId: tabInfo?.tabId || null,
+    windowId: tabInfo?.windowId || null,
+    domain: tabInfo?.domain || null,
+    urlPattern: tabInfo?.urlPattern || null,
+    isIncognito: false,
+  };
 }
 
 function isDetectionPaused() {
@@ -279,6 +266,6 @@ if (typeof globalThis !== 'undefined') {
   Object.assign(globalThis, {
     startDetection, stopDetection, pauseDetection, resumeDetection,
     getCurrentSession, isOnAISite, getCurrentTabInfo, isDetectionPaused, getPauseRemaining,
-    currentTab, windowFocused, detectionActive,
+    windowFocused, detectionActive, activeTabs, currentActiveTabKey,
   });
 }

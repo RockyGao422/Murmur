@@ -6,7 +6,7 @@ class StorageManager: ObservableObject {
     private let jsonEncoder: JSONEncoder
     private let jsonDecoder: JSONDecoder
 
-    private var appSupportURL: URL {
+    var appSupportURL: URL {
         guard let url = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
             fatalError("Cannot access Application Support directory")
         }
@@ -44,8 +44,51 @@ class StorageManager: ObservableObject {
         return load(from: sessionsURL) ?? []
     }
 
+    func loadSessions(forDate localDate: String) -> [DetectedSession] {
+        return loadSessions().filter { $0.localDate == localDate }
+    }
+
     func saveSessions(_ sessions: [DetectedSession]) {
         save(sessions, to: sessionsURL)
+    }
+
+    /// Append a single session — for local detection results (no dedup needed).
+    func appendSession(_ session: DetectedSession) {
+        var sessions = loadSessions()
+        sessions.append(session)
+        saveSessions(sessions)
+    }
+
+    /// Upsert a session by id or source_fingerprint. For import/sync scenarios.
+    func upsertSession(_ session: DetectedSession) {
+        var sessions = loadSessions()
+
+        // Check by id first
+        if let idx = sessions.firstIndex(where: { $0.id == session.id }) {
+            sessions[idx] = session
+            saveSessions(sessions)
+            return
+        }
+
+        // Check by source_fingerprint
+        if let fingerprint = session.sourceFingerprint, !fingerprint.isEmpty,
+           let idx = sessions.firstIndex(where: { $0.sourceFingerprint == fingerprint }) {
+            // Update existing with imported data
+            var updated = sessions[idx]
+            updated.activeSeconds = session.activeSeconds
+            updated.endedAt = session.endedAt
+            updated.status = session.status
+            updated.syncStatus = session.syncStatus
+            updated.syncedAt = session.syncedAt
+            updated.updatedAt = Date()
+            sessions[idx] = updated
+            saveSessions(sessions)
+            return
+        }
+
+        // Not found — append
+        sessions.append(session)
+        saveSessions(sessions)
     }
 
     // MARK: - Entries

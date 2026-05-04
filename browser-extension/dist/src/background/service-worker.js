@@ -17,6 +17,7 @@ try {
     '../shared/enums.js',
     '../shared/tool-catalog.js',
     '../shared/storage.js',
+    '../aggregation/session-aggregator.js',
     'tool-matcher.js',
     'sessionizer.js',
     'detector.js',
@@ -32,8 +33,10 @@ try {
 
 const ALARM_FLUSH = 'murmur-flush';
 const ALARM_IDLE_CHECK = 'murmur-idle-check';
+const ALARM_SYNC_RETRY = 'murmur-sync-retry';
 const FLUSH_INTERVAL_MINUTES = 5;
 const IDLE_CHECK_INTERVAL_MINUTES = 10;
+const SYNC_RETRY_INTERVAL_MINUTES = 5;
 const KEEPALIVE_INTERVAL_SECONDS = 20;
 
 // ============================================================================
@@ -109,15 +112,27 @@ function setupFlushAlarm() {
   chrome.alarms.create(ALARM_FLUSH, {
     periodInMinutes: FLUSH_INTERVAL_MINUTES,
   });
+}
 
-  chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === ALARM_FLUSH) {
-      flushAll().catch((err) => {
-        console.error('[Murmur SW] Flush alarm error:', err);
-      });
-    }
+function setupSyncRetryAlarm() {
+  chrome.alarms.create(ALARM_SYNC_RETRY, {
+    periodInMinutes: SYNC_RETRY_INTERVAL_MINUTES,
   });
 }
+
+// Combined alarm listener
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === ALARM_FLUSH) {
+    flushAll().catch((err) => {
+      console.error('[Murmur SW] Flush alarm error:', err);
+    });
+  }
+  if (alarm.name === ALARM_SYNC_RETRY) {
+    retryPendingSyncs().catch((err) => {
+      console.error('[Murmur SW] Sync retry error:', err);
+    });
+  }
+});
 
 // ============================================================================
 // Installation
@@ -173,6 +188,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   // Start everything
   await initialize();
   setupFlushAlarm();
+  setupSyncRetryAlarm();
   startKeepAlive();
   tryConnectNativeMessaging();
 });
@@ -189,6 +205,7 @@ chrome.runtime.onStartup.addListener(async () => {
   console.log('[Murmur SW] Browser startup — initializing');
   await initialize();
   setupFlushAlarm();
+  setupSyncRetryAlarm();
   startKeepAlive();
   tryConnectNativeMessaging();
 });
@@ -294,13 +311,10 @@ async function handleMessage(message, sender) {
     // Session actions
     // ========================================================================
     case 'quickComplete': {
-      const domain = payload?.domain || getCurrentTabInfo().domain;
-      if (!domain) {
-        return { success: false, error: 'No active domain' };
-      }
-      const session = await quickEndSession(domain);
+      const activeKey = currentActiveKey;
+      const session = activeKey ? await quickEndSession(activeKey) : null;
       if (!session) {
-        return { success: false, error: 'No active session for this domain (may have already ended)' };
+        return { success: false, error: 'No active session (may have already ended)' };
       }
       return {
         success: true,
@@ -328,9 +342,11 @@ async function handleMessage(message, sender) {
       }
       await addIgnoredDomain(domain);
 
-      // End any active session for this domain
-      if (getSessionForDomain(domain)) {
-        await endSession(domain);
+      // End any active session for this domain (iterate all active sessions)
+      for (const [key, state] of activeSessions) {
+        if (state.session.rawDomain === domain) {
+          await endSession(key);
+        }
       }
 
       return { success: true, data: { ignored: domain } };
@@ -503,14 +519,11 @@ async function handleMessage(message, sender) {
       if (!payload || !payload.entry) {
         return { success: false, error: 'No entry data provided' };
       }
-      const domain = payload.domain || getCurrentTabInfo().domain;
-      if (!domain) {
-        return { success: false, error: 'No active domain' };
-      }
-      const activeSession = getSessionForDomain(domain);
+      const activeSession = getCurrentSession();
       if (!activeSession) {
-        return { success: false, error: 'No active session for this domain' };
+        return { success: false, error: 'No active session' };
       }
+      const activeKey = currentActiveKey;
       try {
         // Step 1: Save entry first (session is still active; failure → retry-safe)
         const entry = {
@@ -519,36 +532,26 @@ async function handleMessage(message, sender) {
         };
         await saveEntry(entry);
 
-        // Step 2: Entry persisted — now finalize session as COMPLETED
-        const now = new Date().toISOString();
-        const startedAt = new Date(activeSession.startedAt || activeSession.startTime);
-        const elapsedSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
-
-        const completedSession = {
-          ...activeSession,
-          endedAt: now,
-          activeSeconds: elapsedSeconds > 0 ? elapsedSeconds : (activeSession.activeSeconds || 0),
-          status: SessionStatus.COMPLETED,
-          updatedAt: now,
-        };
-
-        // Persist completed session (throws on failure, but entry already saved)
-        await saveSession(completedSession);
-        // Remove from in-memory active sessions
-        if (typeof activeSessions !== 'undefined' && activeSessions.delete) {
-          activeSessions.delete(domain);
+        // Step 2: Entry persisted — now finalize session as COMPLETED using key-based end
+        let completedSession;
+        if (activeKey) {
+          completedSession = await quickEndSession(activeKey);
+        } else {
+          // Fallback: use domain-based lookup
+          const domain = payload.domain || getCurrentTabInfo().domain;
+          if (domain) completedSession = await quickEndSession(domain);
         }
-        if (typeof domainToolMap !== 'undefined' && domainToolMap.delete) {
-          domainToolMap.delete(domain);
-        }
-        saveActiveSession(null);
 
-        // Verify session is findable in storage (best effort)
-        const updated = await updateSession(completedSession.id, {
-          status: SessionStatus.COMPLETED, endedAt: now, activeSeconds: completedSession.activeSeconds, updatedAt: now,
-        });
-        if (!updated) {
-          console.warn('[Murmur SW] Entry saved, session finalized, but updateSession could not confirm:', completedSession.id);
+        if (completedSession) {
+          completedSession.status = SessionStatus.COMPLETED;
+          await updateSession(completedSession.id, { status: SessionStatus.COMPLETED, updatedAt: new Date().toISOString() });
+
+          // Add to sync queue if native messaging enabled
+          const settings = await getSettings();
+          if (settings.nativeMessagingEnabled) {
+            await addToSyncQueue(completedSession.id);
+            await updateSessionSyncStatus(completedSession.id, SyncStatus.PENDING);
+          }
         }
 
         return { success: true, data: { session: completedSession, entry } };
@@ -582,26 +585,33 @@ async function handleMessage(message, sender) {
     case 'reportPrompt': {
       const { sessionId, domain } = payload || {};
 
-      // If sessionId is provided directly, use it
-      if (sessionId) {
-        const count = await incrementPromptCount(sessionId);
-        // Also update the in-memory session if active
-        const activeSession = getSessionForDomain(domain);
-        if (activeSession) {
+      // Use the current active session's ID if not provided
+      const activeSession = getCurrentSession();
+      const targetId = sessionId || (activeSession?.id);
+
+      if (targetId) {
+        const count = await incrementPromptCount(targetId);
+        if (activeSession && activeSession.id === targetId) {
           activeSession.promptCount = count;
+        }
+        // Also update in activeSessions map if present
+        if (currentActiveKey) {
+          const state = activeSessions.get(currentActiveKey);
+          if (state && state.session.id === targetId) {
+            state.session.promptCount = count;
+          }
         }
         return { success: true, data: { count } };
       }
 
-      // Otherwise, look up the active session for the reported domain
+      // Fallback: look up by domain
       if (domain) {
-        const activeSession = getSessionForDomain(domain);
-        if (activeSession) {
-          const count = await incrementPromptCount(activeSession.id);
-          activeSession.promptCount = count;
-          return { success: true, data: { count, sessionId: activeSession.id } };
+        const session = getSessionForDomain(domain);
+        if (session) {
+          const count = await incrementPromptCount(session.id);
+          session.promptCount = count;
+          return { success: true, data: { count, sessionId: session.id } };
         }
-        // No active session for this domain — silently ignore
         return { success: true, data: { count: 0, note: 'No active session for domain' } };
       }
 
@@ -668,11 +678,68 @@ async function syncSessionToMacOS(session) {
   }
   try {
     const result = await nativeMessaging.sendSession(session);
-    if (!result.ok) {
-      console.debug('[Murmur SW] Failed to sync session to macOS:', result.error);
+    if (result.ok) {
+      await removeFromSyncQueue(session.id);
+      await updateSessionSyncStatus(session.id, SyncStatus.SYNCED, new Date().toISOString());
+    } else {
+      await updateSyncQueueItem(session.id, { lastError: result.error, attempts: 1 });
     }
   } catch (err) {
     console.debug('[Murmur SW] Native sync error:', err.message);
+    await updateSyncQueueItem(session.id, { lastError: err.message });
+  }
+}
+
+/**
+ * Retry all pending items in the sync queue.
+ */
+async function retryPendingSyncs() {
+  const settings = await getSettings();
+  if (!settings.nativeMessagingEnabled) return;
+
+  if (typeof nativeMessaging === 'undefined') return;
+  if (!nativeMessaging.isConnected()) {
+    nativeMessaging.connect();
+    return;
+  }
+
+  const queue = await getSyncQueue();
+  if (queue.length === 0) return;
+
+  const sessions = await getSessions();
+  const now = Date.now();
+
+  for (const item of queue) {
+    if (item.nextRetryAt > now) continue;
+
+    const session = sessions.find(s => s.id === item.sessionId);
+    if (!session) {
+      await removeFromSyncQueue(item.sessionId);
+      continue;
+    }
+
+    try {
+      const result = await nativeMessaging.sendSession(session);
+      if (result.ok) {
+        await removeFromSyncQueue(session.id);
+        await updateSessionSyncStatus(session.id, SyncStatus.SYNCED, new Date().toISOString());
+      } else {
+        const newAttempts = (item.attempts || 0) + 1;
+        await updateSyncQueueItem(session.id, {
+          attempts: newAttempts,
+          lastError: result.error,
+          nextRetryAt: now + Math.min(60000 * Math.pow(2, newAttempts), 600000), // exp backoff, max 10min
+        });
+        await updateSessionSyncStatus(session.id, SyncStatus.FAILED);
+      }
+    } catch (err) {
+      const newAttempts = (item.attempts || 0) + 1;
+      await updateSyncQueueItem(session.id, {
+        attempts: newAttempts,
+        lastError: err.message,
+        nextRetryAt: now + Math.min(60000 * Math.pow(2, newAttempts), 600000),
+      });
+    }
   }
 }
 
@@ -680,19 +747,7 @@ async function syncSessionToMacOS(session) {
  * Sync a batch of pending sessions to the macOS app.
  */
 async function syncPendingToMacOS() {
-  if (typeof nativeMessaging === 'undefined' || !nativeMessaging.isConnected()) {
-    return;
-  }
-  try {
-    const sessions = await getSessions();
-    const unsynced = sessions.filter((s) => !s.syncedToMacOS);
-    if (unsynced.length > 0) {
-      const result = await nativeMessaging.sendBatch(unsynced);
-      console.debug('[Murmur SW] Synced', result.synced, 'sessions to macOS');
-    }
-  } catch (err) {
-    console.debug('[Murmur SW] Batch sync error:', err.message);
-  }
+  await retryPendingSyncs();
 }
 
 // Add native messaging status to getStatus response

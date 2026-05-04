@@ -156,6 +156,13 @@ enum EventType: String, Codable {
     case close
 }
 
+enum SyncStatus: String, Codable, CaseIterable {
+    case localOnly = "local_only"
+    case pending
+    case synced
+    case failed
+}
+
 // Use case categories
 enum UseCaseCategory: String, CaseIterable {
     case codeGeneration = "code_generation"

@@ -1,5 +1,57 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## 常用命令
+
+| 平台 | 构建 | 检查 | 测试 |
+|------|------|------|------|
+| **browser-extension** | `npm run build`（复制到 `dist/`） | `npm run lint` | 无测试 |
+| **android** | 先生成 wrapper：`gradle wrapper`，然后 `./gradlew assembleDebug` | `./gradlew lint` | `./gradlew testDebugUnitTest` |
+| **macos** | 无构建系统（无 `.xcodeproj` 和 `Package.swift`） | 无 | 无 |
+
+- 浏览器扩展是最成熟的平台，也是唯一有完整构建流程的平台。
+- Android 未提交 `gradlew`，需在 `android/` 目录先执行 `gradle wrapper`。
+- macOS 有 39 个 Swift 源文件但没有 Xcode 工程，无法从命令行构建。
+
+## 高层架构
+
+**多平台 monorepo**，三个独立平台 + 共享数据契约层：
+
+```
+shared/                  ← 跨端数据契约（schemas + tool-catalog.json）
+macos/                   ← Swift/SwiftUI，JSON 文件持久化，NSWorkspace 检测
+android/                 ← Kotlin/Compose，Room SQLite，UsageStatsManager 检测
+browser-extension/       ← 原生 JS/MV3，chrome.storage.local，tabs API 检测
+```
+
+**检测流水线**（三个平台逻辑相同）：
+
+```
+Detector（OS 事件）→ ToolMatcher（工具目录匹配）→ Sessionizer（时间窗口聚合）
+→ DetectedSession（自动生成，status=pending）
+→ 用户补全 → LedgerEntry（含质量/感受/时间指标）
+→ 计算器（净收益、疲劳指数、周报）
+```
+
+**数据契约**（`shared/schemas/*.json`）：
+- `DetectedSession` — 自动检测到的 AI 使用（工具、平台、时间戳、置信度）
+- `LedgerEntry` — 用户补全后的记录（用途、时间分解、质量、感受）
+- `ToolCatalogItem` — 已知 AI 工具定义，含各平台匹配规则
+- `tool-catalog.json` — 17 个默认 AI 工具（bundle ID、package name、域名）
+
+各平台**手动镜像**这些 schema 到原生类型（Swift struct / Kotlin data class / JSDoc typedef）。没有代码生成，`grep` 是唯一找到所有字段引用点的方法。
+
+**各平台持久化：**
+- macOS：`Application Support/Murmur/` 下的 JSON 文件
+- Android：Room SQLite 数据库
+- 浏览器扩展：`chrome.storage.local`
+
+**关键不变量：**
+- 字段名、枚举值、单位必须跨三端及 shared schemas 保持一致
+- 时间单位统一为**分钟**（`estimated_saved_minutes`），不可用秒或小时
+- 隐私：不读取 prompt 内容、不保存 AI 输出、不截图、不监听键盘
+
 ## 第一性原理
 
 以下原则优先于所有具体规则。当规则冲突时，按编号靠前的原则裁决。

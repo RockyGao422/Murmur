@@ -11,6 +11,8 @@ const STORAGE_KEYS = Object.freeze({
   IGNORED_DOMAINS: 'murmur_ignored_domains',
   ACTIVE_SESSION: 'murmur_active_session',
   PROMPT_COUNTS: 'murmur_prompt_counts',
+  SYNC_QUEUE: 'murmur_sync_queue',
+  DEVICE_ID: 'murmur_device_id',
 });
 
 /**
@@ -377,6 +379,102 @@ async function incrementPromptCount(sessionId) {
 }
 
 // ============================================================================
+// Sync Queue (Native Messaging)
+// ============================================================================
+
+/**
+ * Get the sync queue.
+ * @returns {Promise<import('./types.js').SyncQueueItem[]>}
+ */
+async function getSyncQueue() {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.SYNC_QUEUE);
+    return result[STORAGE_KEYS.SYNC_QUEUE] || [];
+  } catch (err) {
+    return [];
+  }
+}
+
+/**
+ * Add a session ID to the sync queue.
+ * @param {string} sessionId
+ * @returns {Promise<void>}
+ */
+async function addToSyncQueue(sessionId) {
+  try {
+    const queue = await getSyncQueue();
+    if (!queue.some(item => item.sessionId === sessionId)) {
+      queue.push({
+        sessionId,
+        attempts: 0,
+        lastError: null,
+        nextRetryAt: Date.now(),
+        createdAt: new Date().toISOString(),
+      });
+      await chrome.storage.local.set({ [STORAGE_KEYS.SYNC_QUEUE]: queue });
+    }
+  } catch (err) {
+    console.error('[Murmur Storage] Failed to add to sync queue:', err);
+  }
+}
+
+/**
+ * Update a sync queue item.
+ * @param {string} sessionId
+ * @param {Partial<import('./types.js').SyncQueueItem>} updates
+ * @returns {Promise<void>}
+ */
+async function updateSyncQueueItem(sessionId, updates) {
+  try {
+    const queue = await getSyncQueue();
+    const idx = queue.findIndex(item => item.sessionId === sessionId);
+    if (idx !== -1) {
+      queue[idx] = { ...queue[idx], ...updates };
+      await chrome.storage.local.set({ [STORAGE_KEYS.SYNC_QUEUE]: queue });
+    }
+  } catch (err) {
+    console.error('[Murmur Storage] Failed to update sync queue item:', err);
+  }
+}
+
+/**
+ * Remove a session ID from the sync queue (sync completed).
+ * @param {string} sessionId
+ * @returns {Promise<void>}
+ */
+async function removeFromSyncQueue(sessionId) {
+  try {
+    const queue = await getSyncQueue();
+    const filtered = queue.filter(item => item.sessionId !== sessionId);
+    await chrome.storage.local.set({ [STORAGE_KEYS.SYNC_QUEUE]: filtered });
+  } catch (err) {
+    console.error('[Murmur Storage] Failed to remove from sync queue:', err);
+  }
+}
+
+/**
+ * Update sync status fields on a stored session.
+ * @param {string} sessionId
+ * @param {string} syncStatus - 'pending' | 'synced' | 'failed'
+ * @param {string} [syncedAt] - ISO timestamp
+ * @returns {Promise<void>}
+ */
+async function updateSessionSyncStatus(sessionId, syncStatus, syncedAt) {
+  try {
+    const sessions = await getSessions();
+    const idx = sessions.findIndex(s => s.id === sessionId);
+    if (idx !== -1) {
+      sessions[idx].syncStatus = syncStatus;
+      sessions[idx].syncedAt = syncedAt || null;
+      sessions[idx].updatedAt = new Date().toISOString();
+      await chrome.storage.local.set({ [STORAGE_KEYS.SESSIONS]: sessions });
+    }
+  } catch (err) {
+    console.error('[Murmur Storage] Failed to update sync status:', err);
+  }
+}
+
+// ============================================================================
 // Data Management
 // ============================================================================
 
@@ -463,6 +561,12 @@ if (typeof globalThis !== 'undefined') {
     // Prompt counts
     getPromptCount,
     incrementPromptCount,
+    // Sync queue
+    getSyncQueue,
+    addToSyncQueue,
+    updateSyncQueueItem,
+    removeFromSyncQueue,
+    updateSessionSyncStatus,
     // Management
     clearAllData,
     getStorageUsage,

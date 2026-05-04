@@ -50,7 +50,7 @@ const DetectionStatus = Object.freeze({
   DISABLED: 'disabled',
 });
 
-/** @enum {string} */
+/** @enum {string} Browser-level internal event types */
 const EventType = Object.freeze({
   TAB_ACTIVATED: 'tab_activated',
   TAB_UPDATED: 'tab_updated',
@@ -58,6 +58,47 @@ const EventType = Object.freeze({
   WINDOW_FOCUS_CHANGED: 'window_focus_changed',
   NAVIGATION_COMMITTED: 'navigation_committed',
   IDLE_STATE_CHANGED: 'idle_state_changed',
+});
+
+/** @enum {string} Canonical event types aligned with shared/schemas/raw-event.schema.json */
+const CanonicalEventType = Object.freeze({
+  TAB_ACTIVE: 'tab_active',
+  TAB_INACTIVE: 'tab_inactive',
+  NAVIGATION: 'navigation',
+  CLOSE: 'close',
+});
+
+/**
+ * Maps internal browser EventType values to canonical event types.
+ * WINDOW_FOCUS_CHANGED maps to tab_inactive (blur) or tab_active (focus) at runtime.
+ */
+const EVENT_TYPE_TO_CANONICAL = Object.freeze({
+  [EventType.TAB_ACTIVATED]: CanonicalEventType.TAB_ACTIVE,
+  [EventType.TAB_UPDATED]: CanonicalEventType.NAVIGATION,
+  [EventType.NAVIGATION_COMMITTED]: CanonicalEventType.NAVIGATION,
+  [EventType.TAB_REMOVED]: CanonicalEventType.CLOSE,
+  // WINDOW_FOCUS_CHANGED: determined at runtime by focused flag
+});
+
+/** @enum {string} Sync status for Native Messaging */
+const SyncStatus = Object.freeze({
+  LOCAL_ONLY: 'local_only',
+  PENDING: 'pending',
+  SYNCED: 'synced',
+  FAILED: 'failed',
+});
+
+/** @enum {string} Use case categories, aligned with macOS canonical set */
+const UseCase = Object.freeze({
+  CODE_GENERATION: 'code_generation',
+  CODE_REVIEW: 'code_review',
+  DEBUGGING: 'debugging',
+  CONTENT_WRITING: 'content_writing',
+  CONTENT_TRANSLATION: 'content_translation',
+  RESEARCH: 'research',
+  LEARNING: 'learning',
+  CREATIVE: 'creative',
+  OTHER: 'other',
 });
 
 /**
@@ -100,6 +141,10 @@ if (typeof globalThis !== 'undefined') {
     UserMood,
     DetectionStatus,
     EventType,
+    CanonicalEventType,
+    EVENT_TYPE_TO_CANONICAL,
+    SyncStatus,
+    UseCase,
     QUALITY_SCORES,
     QUALITY_PENALTIES,
     MOOD_WEIGHTS,

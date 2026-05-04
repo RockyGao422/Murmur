@@ -17,11 +17,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let ignoredTargets = storageManager.loadIgnoredTargets()
         detectionManager.updateIgnoredTargets(ignoredTargets)
 
-        // Bind detection → persistence
+        // Bind detection → persistence (uses appendSession for local-only detections)
         detectionManager.onNewSession = { session in
-            var sessions = storageManager.loadSessions()
-            sessions.append(session)
-            storageManager.saveSessions(sessions)
+            storageManager.appendSession(session)
         }
 
         // Request notification permission

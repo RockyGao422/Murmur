@@ -29,7 +29,7 @@
  * @property {string} id — UUID
  * @property {SourcePlatform} sourcePlatform
  * @property {SourceKind} sourceKind
- * @property {string} detectorId — e.g. 'browser.tabs'
+ * @property {string} detectorId — e.g. 'browser.extension'
  * @property {string} toolId — e.g. 'chatgpt'
  * @property {string} toolName — snapshot
  * @property {string} [rawAppName]
@@ -49,6 +49,11 @@
  * @property {SessionStatus} status
  * @property {string} [mergedIntoSessionId]
  * @property {number} [promptCount] — P1, only when enabled
+ * @property {string} [deviceId] — per-installation UUID, generated on first launch
+ * @property {string} [sourceSessionId] — original session ID from source platform on import
+ * @property {string} [sourceFingerprint] — SHA-256 idempotency key for dedup
+ * @property {'local_only'|'pending'|'synced'|'failed'} [syncStatus] — default 'local_only'
+ * @property {string} [syncedAt] — ISO 8601 timestamp of most recent successful sync
  * @property {string} createdAt — ISO 8601
  * @property {string} updatedAt — ISO 8601
  */
@@ -138,6 +143,23 @@
  * @typedef {Object} IgnoredTarget
  * @property {string} domain
  * @property {number} addedAt — epoch ms
+ */
+
+/**
+ * @typedef {'local_only'|'pending'|'synced'|'failed'} SyncStatus
+ */
+
+/**
+ * @typedef {'code_generation'|'code_review'|'debugging'|'content_writing'|'content_translation'|'research'|'learning'|'creative'|'other'} UseCase
+ */
+
+/**
+ * @typedef {Object} SyncQueueItem
+ * @property {string} sessionId
+ * @property {number} attempts
+ * @property {string|null} lastError
+ * @property {number} nextRetryAt — epoch ms
+ * @property {string} createdAt — ISO 8601
  */
 
 const _typesPlaceholder = true;

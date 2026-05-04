@@ -9,6 +9,12 @@ struct DailySummary: Codable, Identifiable, Equatable {
     var ignoredSessionCount: Int
     var suspectedSessionCount: Int
     var detectedActiveSeconds: Int
+    var grossActiveSeconds: Int = 0
+    var dedupedActiveSeconds: Int = 0
+    var appActiveSeconds: Int = 0
+    var webActiveSeconds: Int = 0
+    var promptCount: Int = 0
+    var completionRate: Double = 0
     var distinctToolCount: Int
     var toolSwitchCount: Int
     var nightSessionCount: Int
@@ -30,6 +36,12 @@ struct DailySummary: Codable, Identifiable, Equatable {
         case ignoredSessionCount = "ignored_session_count"
         case suspectedSessionCount = "suspected_session_count"
         case detectedActiveSeconds = "detected_active_seconds"
+        case grossActiveSeconds = "gross_active_seconds"
+        case dedupedActiveSeconds = "deduped_active_seconds"
+        case appActiveSeconds = "app_active_seconds"
+        case webActiveSeconds = "web_active_seconds"
+        case promptCount = "prompt_count"
+        case completionRate = "completion_rate"
         case distinctToolCount = "distinct_tool_count"
         case toolSwitchCount = "tool_switch_count"
         case nightSessionCount = "night_session_count"
@@ -41,6 +53,74 @@ struct DailySummary: Codable, Identifiable, Equatable {
         case reworkRate = "rework_rate"
         case fatigueScore = "fatigue_score"
         case updatedAt = "updated_at"
+    }
+
+    /// Custom decoder with defaults for v2 fields so existing daily_summaries.json still loads.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        localDate = try container.decode(String.self, forKey: .localDate)
+        detectedSessionCount = try container.decode(Int.self, forKey: .detectedSessionCount)
+        pendingSessionCount = try container.decode(Int.self, forKey: .pendingSessionCount)
+        completedSessionCount = try container.decode(Int.self, forKey: .completedSessionCount)
+        ignoredSessionCount = try container.decodeIfPresent(Int.self, forKey: .ignoredSessionCount) ?? 0
+        suspectedSessionCount = try container.decodeIfPresent(Int.self, forKey: .suspectedSessionCount) ?? 0
+        detectedActiveSeconds = try container.decode(Int.self, forKey: .detectedActiveSeconds)
+        grossActiveSeconds = try container.decodeIfPresent(Int.self, forKey: .grossActiveSeconds) ?? 0
+        dedupedActiveSeconds = try container.decodeIfPresent(Int.self, forKey: .dedupedActiveSeconds) ?? 0
+        appActiveSeconds = try container.decodeIfPresent(Int.self, forKey: .appActiveSeconds) ?? 0
+        webActiveSeconds = try container.decodeIfPresent(Int.self, forKey: .webActiveSeconds) ?? 0
+        promptCount = try container.decodeIfPresent(Int.self, forKey: .promptCount) ?? 0
+        completionRate = try container.decodeIfPresent(Double.self, forKey: .completionRate) ?? 0
+        distinctToolCount = try container.decodeIfPresent(Int.self, forKey: .distinctToolCount) ?? 0
+        toolSwitchCount = try container.decodeIfPresent(Int.self, forKey: .toolSwitchCount) ?? 0
+        nightSessionCount = try container.decodeIfPresent(Int.self, forKey: .nightSessionCount) ?? 0
+        totalEntries = try container.decodeIfPresent(Int.self, forKey: .totalEntries) ?? 0
+        totalSavedMinutes = try container.decodeIfPresent(Int.self, forKey: .totalSavedMinutes) ?? 0
+        totalExtraCostMinutes = try container.decodeIfPresent(Int.self, forKey: .totalExtraCostMinutes) ?? 0
+        netGainMinutes = try container.decodeIfPresent(Int.self, forKey: .netGainMinutes) ?? 0
+        totalReworkMinutes = try container.decodeIfPresent(Int.self, forKey: .totalReworkMinutes) ?? 0
+        reworkRate = try container.decodeIfPresent(Double.self, forKey: .reworkRate) ?? 0
+        fatigueScore = try container.decodeIfPresent(Int.self, forKey: .fatigueScore) ?? 0
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
+
+    /// Memberwise initializer (must be explicit since custom Decodable init removes synthesis).
+    init(
+        id: String, localDate: String, detectedSessionCount: Int, pendingSessionCount: Int,
+        completedSessionCount: Int, ignoredSessionCount: Int = 0, suspectedSessionCount: Int = 0,
+        detectedActiveSeconds: Int, grossActiveSeconds: Int = 0, dedupedActiveSeconds: Int = 0,
+        appActiveSeconds: Int = 0, webActiveSeconds: Int = 0, promptCount: Int = 0,
+        completionRate: Double = 0, distinctToolCount: Int = 0, toolSwitchCount: Int = 0,
+        nightSessionCount: Int = 0, totalEntries: Int = 0, totalSavedMinutes: Int = 0,
+        totalExtraCostMinutes: Int = 0, netGainMinutes: Int = 0, totalReworkMinutes: Int = 0,
+        reworkRate: Double = 0, fatigueScore: Int = 0, updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.localDate = localDate
+        self.detectedSessionCount = detectedSessionCount
+        self.pendingSessionCount = pendingSessionCount
+        self.completedSessionCount = completedSessionCount
+        self.ignoredSessionCount = ignoredSessionCount
+        self.suspectedSessionCount = suspectedSessionCount
+        self.detectedActiveSeconds = detectedActiveSeconds
+        self.grossActiveSeconds = grossActiveSeconds
+        self.dedupedActiveSeconds = dedupedActiveSeconds
+        self.appActiveSeconds = appActiveSeconds
+        self.webActiveSeconds = webActiveSeconds
+        self.promptCount = promptCount
+        self.completionRate = completionRate
+        self.distinctToolCount = distinctToolCount
+        self.toolSwitchCount = toolSwitchCount
+        self.nightSessionCount = nightSessionCount
+        self.totalEntries = totalEntries
+        self.totalSavedMinutes = totalSavedMinutes
+        self.totalExtraCostMinutes = totalExtraCostMinutes
+        self.netGainMinutes = netGainMinutes
+        self.totalReworkMinutes = totalReworkMinutes
+        self.reworkRate = reworkRate
+        self.fatigueScore = fatigueScore
+        self.updatedAt = updatedAt
     }
 
     static func == (lhs: DailySummary, rhs: DailySummary) -> Bool {
@@ -59,12 +139,6 @@ struct DailySummary: Codable, Identifiable, Equatable {
             return "\(h)时\(m)分"
         }
         return "\(minutes)分钟"
-    }
-
-    var completionRate: Double {
-        guard totalEntries > 0 || detectedSessionCount > 0 else { return 0 }
-        let total = Double(pendingSessionCount + completedSessionCount + ignoredSessionCount)
-        return total > 0 ? Double(completedSessionCount) / total : 0
     }
 
     var completionRatePercent: String {

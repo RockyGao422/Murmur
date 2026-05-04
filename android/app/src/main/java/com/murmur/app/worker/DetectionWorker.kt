@@ -60,13 +60,14 @@ class DetectionWorker(
                 return@withContext Result.success()
             }
 
-            // Get last processed timestamp
+            // Get last processed timestamp with overlap window for delayed events
+            val overlapWindowMs = TimeUnit.MINUTES.toMillis(2)
             val lastTimestamp = settingsRepo.lastProcessedTimestamp.first()
             val endTime = System.currentTimeMillis()
             val startTime = if (lastTimestamp > 0) {
-                lastTimestamp
+                lastTimestamp - overlapWindowMs // Go back 2 min to catch delayed events
             } else {
-                endTime - TimeUnit.MINUTES.toMillis(15) // Default: last 15 minutes
+                endTime - TimeUnit.MINUTES.toMillis(15) // First run: last 15 minutes
             }
 
             // Query usage events
@@ -85,12 +86,12 @@ class DetectionWorker(
 
             // Match and sessionize
             val matcher = ToolMatcher(tools, ignoredTargets)
-            val sessionizer = Sessionizer()
+            val sessionizer = Sessionizer(appContext)
             val sessions = sessionizer.processEvents(rawEvents, matcher)
 
-            // Save new sessions
+            // Save new sessions with fingerprint dedup
             if (sessions.isNotEmpty()) {
-                sessionRepo.insertSessions(sessions)
+                sessionRepo.upsertSessions(sessions)
                 Log.d(TAG, "Detected ${sessions.size} new sessions")
             }
 

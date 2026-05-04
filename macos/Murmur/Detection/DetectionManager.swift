@@ -35,6 +35,8 @@ class DetectionManager: ObservableObject {
         updateStatus(.running)
         appDetector.reset()
         loadToolCatalog()
+        // Check current app immediately — user may already be in an AI app
+        appDetector.manualCheckCurrentApp()
     }
 
     func stopDetection() {

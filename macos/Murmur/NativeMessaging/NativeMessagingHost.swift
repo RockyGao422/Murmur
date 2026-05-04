@@ -13,21 +13,61 @@ final class NativeMessagingHost {
     struct BrowserSessionMessage: Codable {
         let type: String
         let schemaVersion: Int
+        let sentAt: String?
         let payload: BrowserSessionPayload
+
+        enum CodingKeys: String, CodingKey {
+            case type
+            case schemaVersion = "schema_version"
+            case sentAt = "sent_at"
+            case payload
+        }
     }
 
     struct BrowserSessionPayload: Codable {
         let id: String
-        let sourcePlatform: String
+        let deviceId: String?
+        let sourcePlatform: String?
+        let sourceKind: String?
+        let detectorId: String?
         let toolId: String
         let toolName: String?
-        let rawDomain: String
+        let rawDomain: String?
         let rawUrlPattern: String?
         let startedAt: String
         let endedAt: String
         let activeSeconds: Int
+        let idleSeconds: Int?
+        let localDate: String?
+        let timezone: String?
+        let isNight: Bool?
         let confidence: Double
+        let status: String?
         let promptCount: Int?
+        let sourceFingerprint: String?
+
+        enum CodingKeys: String, CodingKey {
+            case id
+            case deviceId = "device_id"
+            case sourcePlatform = "source_platform"
+            case sourceKind = "source_kind"
+            case detectorId = "detector_id"
+            case toolId = "tool_id"
+            case toolName = "tool_name"
+            case rawDomain = "raw_domain"
+            case rawUrlPattern = "raw_url_pattern"
+            case startedAt = "started_at"
+            case endedAt = "ended_at"
+            case activeSeconds = "active_seconds"
+            case idleSeconds = "idle_seconds"
+            case localDate = "local_date"
+            case timezone
+            case isNight = "is_night"
+            case confidence
+            case status
+            case promptCount = "prompt_count"
+            case sourceFingerprint = "source_fingerprint"
+        }
     }
 
     struct HostResponse: Codable {
@@ -77,7 +117,9 @@ final class NativeMessagingHost {
     }
 
     private func handleMessage(_ message: BrowserSessionMessage, encoder: JSONEncoder) throws {
-        guard message.type == "detected_session", message.schemaVersion == 1 else {
+        // Accept both old and new message types for compatibility
+        let validTypes = ["detected_session", "detected_session.upsert"]
+        guard validTypes.contains(message.type), message.schemaVersion == 1 else {
             sendResponse(HostResponse(status: "error", message: "Unknown message type or version", sessionId: nil), encoder: encoder)
             return
         }
@@ -103,23 +145,27 @@ final class NativeMessagingHost {
             startedAt: formatter.date(from: payload.startedAt) ?? now,
             endedAt: formatter.date(from: payload.endedAt) ?? now,
             activeSeconds: payload.activeSeconds,
-            idleSeconds: nil,
-            localDate: String(dateStr),
-            timezone: TimeZone.current.identifier,
-            isNight: isNightHour(now),
+            idleSeconds: payload.idleSeconds ?? 0,
+            localDate: payload.localDate ?? String(dateStr),
+            timezone: payload.timezone ?? TimeZone.current.identifier,
+            isNight: payload.isNight ?? isNightHour(now),
             confidence: payload.confidence,
             status: confidenceMeetsThreshold(payload.confidence) ? .pending : .suspected,
             mergedIntoSessionId: nil,
             promptCount: payload.promptCount,
+            deviceId: payload.deviceId ?? "",
+            sourceSessionId: nil,
+            sourceFingerprint: payload.sourceFingerprint,
+            syncStatus: .synced,
+            syncedAt: now,
             createdAt: now,
             updatedAt: now
         )
 
-        var sessions = storageManager.loadSessions()
-        sessions.append(session)
-        storageManager.saveSessions(sessions)
+        // Use upsert for idempotent import (dedup by id or source_fingerprint)
+        storageManager.upsertSession(session)
 
-        sendResponse(HostResponse(status: "ok", message: "Session saved", sessionId: session.id), encoder: encoder)
+        sendResponse(HostResponse(status: "ok", message: "Session upserted", sessionId: session.id), encoder: encoder)
     }
 
     private func confidenceMeetsThreshold(_ confidence: Double) -> Bool {

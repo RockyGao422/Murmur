@@ -11,7 +11,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
-import java.time.ZoneId
 
 class SessionRepository(private val dao: DetectedSessionDao) {
 
@@ -47,6 +46,38 @@ class SessionRepository(private val dao: DetectedSessionDao) {
 
     suspend fun insertSessions(sessions: List<DetectedSession>): List<Long> = withContext(Dispatchers.IO) {
         dao.insertAll(sessions.map { it.toEntity() })
+    }
+
+    /**
+     * Upsert by fingerprint — checks for existing session with same source_fingerprint before inserting.
+     * Returns the existing session ID if found, or the new ID if inserted.
+     */
+    suspend fun upsertByFingerprint(session: DetectedSession): Long = withContext(Dispatchers.IO) {
+        val fingerprint = session.sourceFingerprint
+        if (!fingerprint.isNullOrEmpty()) {
+            val existing = dao.getByFingerprint(fingerprint)
+            if (existing != null) {
+                // Update existing session with any new data
+                dao.update(
+                    existing.copy(
+                        activeSeconds = session.activeSeconds,
+                        endedAt = session.endedAt,
+                        status = session.status.value,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
+                return@withContext existing.id
+            }
+        }
+        // Also check canonicalId
+        if (session.canonicalId.isNotEmpty()) {
+            // Insert with REPLACE strategy handles this
+        }
+        dao.insert(session.toEntity())
+    }
+
+    suspend fun upsertSessions(sessions: List<DetectedSession>): List<Long> = withContext(Dispatchers.IO) {
+        sessions.map { upsertByFingerprint(it) }
     }
 
     suspend fun updateStatus(id: Long, status: SessionStatus) = withContext(Dispatchers.IO) {
@@ -89,9 +120,15 @@ class SessionRepository(private val dao: DetectedSessionDao) {
             )
         )
 
-        // Mark source as merged
+        // Mark source as merged, linking to target canon ID
         val now = System.currentTimeMillis()
-        dao.updateStatus(sourceId, SessionStatus.MERGED.value, now)
+        dao.update(
+            source.copy(
+                status = SessionStatus.MERGED.value,
+                mergedIntoSessionId = target.canonicalId,
+                updatedAt = now
+            )
+        )
     }
 
     suspend fun getDistinctTools(startDate: String, endDate: String): List<String> {
@@ -102,18 +139,32 @@ class SessionRepository(private val dao: DetectedSessionDao) {
     private fun DetectedSessionEntity.toDomain(): DetectedSession {
         return DetectedSession(
             id = id,
+            canonicalId = canonicalId,
             sourcePlatform = SourcePlatform.fromString(sourcePlatform),
             sourceKind = SourceKind.fromString(sourceKind),
+            detectorId = detectorId,
             toolId = toolId,
             toolName = toolName,
-            packageName = packageName,
+            rawAppName = rawAppName,
+            packageName = rawPackageName ?: "",
+            rawPackageName = rawPackageName,
+            rawDomain = rawDomain,
+            rawUrlPattern = rawUrlPattern,
             detectedAt = detectedAt,
             startedAt = startedAt,
             endedAt = endedAt,
             activeSeconds = activeSeconds,
+            idleSeconds = idleSeconds,
             localDate = localDate,
+            timezone = timezone,
+            isNight = isNight,
             status = SessionStatus.fromString(status),
             confidence = confidence,
+            mergedIntoSessionId = mergedIntoSessionId,
+            promptCount = promptCount,
+            sourceFingerprint = sourceFingerprint,
+            deviceId = deviceId,
+            syncStatus = syncStatus,
             createdAt = createdAt,
             updatedAt = updatedAt
         )
@@ -122,18 +173,31 @@ class SessionRepository(private val dao: DetectedSessionDao) {
     private fun DetectedSession.toEntity(): DetectedSessionEntity {
         return DetectedSessionEntity(
             id = id,
+            canonicalId = canonicalId,
             sourcePlatform = sourcePlatform.value,
             sourceKind = sourceKind.value,
+            detectorId = detectorId,
             toolId = toolId,
             toolName = toolName,
-            packageName = packageName,
+            rawAppName = rawAppName,
+            rawPackageName = rawPackageName ?: packageName,
+            rawDomain = rawDomain,
+            rawUrlPattern = rawUrlPattern,
             detectedAt = detectedAt,
             startedAt = startedAt,
             endedAt = endedAt,
             activeSeconds = activeSeconds,
+            idleSeconds = idleSeconds,
             localDate = localDate,
+            timezone = timezone,
+            isNight = isNight,
             status = status.value,
             confidence = confidence,
+            mergedIntoSessionId = mergedIntoSessionId,
+            promptCount = promptCount,
+            sourceFingerprint = sourceFingerprint,
+            deviceId = deviceId,
+            syncStatus = syncStatus,
             createdAt = createdAt,
             updatedAt = updatedAt
         )

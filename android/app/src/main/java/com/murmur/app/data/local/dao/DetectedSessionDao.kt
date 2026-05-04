@@ -32,8 +32,10 @@ interface DetectedSessionDao {
         SELECT
             COUNT(*) as sessionCount,
             COALESCE(SUM(active_seconds), 0) as totalActiveSeconds,
-            SUM(CASE WHEN status = 'pending' OR status = 'suspected' THEN 1 ELSE 0 END) as pendingCount,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedCount
+            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pendingCount,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completedCount,
+            SUM(CASE WHEN status = 'suspected' THEN 1 ELSE 0 END) as suspectedCount,
+            COALESCE(SUM(prompt_count), 0) as promptCount
         FROM detected_sessions
         WHERE local_date = :localDate
     """)
@@ -70,6 +72,9 @@ interface DetectedSessionDao {
     @Query("SELECT * FROM detected_sessions WHERE tool_id = :toolId ORDER BY started_at DESC LIMIT :limit")
     fun getSessionsByTool(toolId: String, limit: Int = 100): Flow<List<DetectedSessionEntity>>
 
+    @Query("SELECT * FROM detected_sessions WHERE source_fingerprint = :fingerprint LIMIT 1")
+    suspend fun getByFingerprint(fingerprint: String): DetectedSessionEntity?
+
     @Query("DELETE FROM detected_sessions")
     suspend fun deleteAll()
 }
@@ -78,5 +83,7 @@ data class TodayStats(
     val sessionCount: Int = 0,
     val totalActiveSeconds: Long = 0,
     val pendingCount: Int = 0,
-    val completedCount: Int = 0
+    val completedCount: Int = 0,
+    val suspectedCount: Int = 0,
+    val promptCount: Int = 0
 )

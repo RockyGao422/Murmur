@@ -18,7 +18,7 @@
     },
     "detector_id": {
       "type": "string",
-      "description": "Detector identifier, e.g. macos.workspace, android.usagestats, browser.tabs"
+      "description": "Detector identifier: macos.workspace, android.usagestats, browser.extension"
     },
     "tool_id": { "type": "string", "description": "Matched tool ID from Tool Catalog" },
     "tool_name": { "type": "string", "description": "Snapshot of tool display name at detection time" },
@@ -48,6 +48,16 @@
     },
     "merged_into_session_id": { "type": "string", "description": "Target session ID if merged" },
     "prompt_count": { "type": "integer", "minimum": 0, "description": "Optional prompt send count (no content)" },
+    "device_id": { "type": "string", "description": "Per-installation device identifier, generated on first launch" },
+    "user_scope_id": { "type": "string", "description": "P1 sync scope identifier, empty in MVP" },
+    "source_session_id": { "type": "string", "description": "Original session ID from the source platform during import" },
+    "source_fingerprint": { "type": "string", "description": "SHA-256 idempotency key for dedup" },
+    "sync_status": {
+      "type": "string",
+      "enum": ["local_only", "pending", "synced", "failed"],
+      "description": "Native Messaging / cross-device sync status"
+    },
+    "synced_at": { "type": "string", "format": "date-time", "description": "Timestamp of most recent successful sync" },
     "created_at": { "type": "string", "format": "date-time" },
     "updated_at": { "type": "string", "format": "date-time" }
   },

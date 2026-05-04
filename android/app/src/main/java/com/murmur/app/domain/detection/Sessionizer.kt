@@ -1,57 +1,109 @@
 package com.murmur.app.domain.detection
 
+import android.content.Context
+import android.content.SharedPreferences
 import com.murmur.app.domain.model.*
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
+import java.util.UUID
 
 /**
  * Converts raw usage events into detected sessions.
- * Implements the same sessionization logic as other Murmur platforms:
+ * Aligned with canonical detected-session schema — generates UUID, fingerprint, timezone, etc.
  *
  * Rules:
- * - < 15s: discard (too short to be meaningful)
- * - 15-30s: mark as SUSPECTED
- * - > 30s: normal ACTIVE session
- * - 3-minute merge window: sessions of the same tool within 3 minutes are merged
- * - Cross-midnight split: sessions spanning midnight are split
+ * - < 15s: discard
+ * - 15-30s: suspect
+ * - > 30s: pending
+ * - 3-min merge window
+ * - Cross-midnight split
  */
-class Sessionizer {
+class Sessionizer(context: Context) {
 
     companion object {
         private const val MIN_SESSION_SECONDS = 15L
         private const val SUSPECTED_THRESHOLD_SECONDS = 30L
-        private const val MERGE_WINDOW_MS = 3 * 60 * 1000L // 3 minutes
+        private const val MERGE_WINDOW_MS = 3 * 60 * 1000L
+        private const val PREFS_NAME = "murmur_sessionizer"
+        private const val KEY_OPEN_STATE = "open_foreground_state"
+        private const val KEY_DEVICE_ID = "murmur_device_id"
+    }
 
-        const val CROSS_MIDNIGHT_START_HOUR = 23
-        const val CROSS_MIDNIGHT_SPLIT_MINUTE = 50
+    private val prefs: SharedPreferences =
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val deviceId: String by lazy { loadOrCreateDeviceId() }
+    private val appContext = context.applicationContext
+
+    /**
+     * Load persisted open foreground state (survives across Worker runs).
+     */
+    fun loadOpenForegroundState(): OpenForegroundState? {
+        val json = prefs.getString(KEY_OPEN_STATE, null) ?: return null
+        return try {
+            val parts = json.split("::")
+            if (parts.size >= 3) {
+                OpenForegroundState(
+                    packageName = parts[0],
+                    startedAt = parts[1].toLong(),
+                    toolId = parts[2]
+                )
+            } else null
+        } catch (_: Exception) { null }
+    }
+
+    /**
+     * Save open foreground state for next Worker run.
+     */
+    fun saveOpenForegroundState(state: OpenForegroundState?) {
+        if (state == null) {
+            prefs.edit().remove(KEY_OPEN_STATE).apply()
+        } else {
+            val json = "${state.packageName}::${state.startedAt}::${state.toolId}"
+            prefs.edit().putString(KEY_OPEN_STATE, json).apply()
+        }
     }
 
     /**
      * Process a list of RawEvents and convert them into DetectedSessions.
+     * Handles persisted open foreground state from previous worker runs.
      */
     fun processEvents(
         events: List<RawEvent>,
         matcher: ToolMatcher
     ): List<DetectedSession> {
-        if (events.isEmpty()) return emptyList()
+        if (events.isEmpty() && loadOpenForegroundState() == null) return emptyList()
 
-        // Step 1: Pair foreground/background events to form raw sessions
-        val rawSessions = pairEvents(events)
+        // Load persisted open state and merge into events
+        val openState = loadOpenForegroundState()
+        val allEvents = mutableListOf<RawEvent>()
+        if (openState != null) {
+            // Insert the open foreground as a starting event
+            allEvents.add(
+                RawEvent(
+                    packageName = openState.packageName,
+                    eventType = RawEventType.FOREGROUND,
+                    timestamp = openState.startedAt
+                )
+            )
+        }
+        allEvents.addAll(events)
+
+        // Step 1: Pair foreground/background events
+        val rawSessions = pairEvents(allEvents)
 
         // Step 2: Match each raw session to a tool
         val matchedSessions = rawSessions.mapNotNull { rawSession ->
             val matchResult = matcher.match(rawSession.foregroundEvent)
             if (matchResult.ignored || matchResult.tool == null) {
-                // Only create sessions for unmatched if they might be AI tools
-                // For now, skip unmatched sessions
                 null
             } else {
                 val durationMs = rawSession.backgroundEvent?.timestamp?.minus(rawSession.foregroundEvent.timestamp)
-                    ?: 0L
+                    ?: (System.currentTimeMillis() - rawSession.foregroundEvent.timestamp).coerceAtLeast(0)
                 val durationSeconds = durationMs / 1000
 
-                // Discard sessions shorter than MIN_SESSION_SECONDS
                 if (durationSeconds < MIN_SESSION_SECONDS) return@mapNotNull null
 
                 val status = when {
@@ -60,38 +112,86 @@ class Sessionizer {
                 }
 
                 val startedAt = rawSession.foregroundEvent.timestamp
-                val endedAt = rawSession.backgroundEvent?.timestamp ?: startedAt + durationMs
+                val endedAt = rawSession.backgroundEvent?.timestamp ?: (startedAt + durationMs)
+                val now = System.currentTimeMillis()
+                val zoneId = ZoneId.systemDefault()
+                val startInstant = Instant.ofEpochMilli(startedAt)
+                val localDate = LocalDate.ofInstant(startInstant, zoneId).toString()
+                val hour = LocalTime.ofInstant(startInstant, zoneId).hour
+                val isNight = hour >= 22 || hour < 6
+
+                val canonicalId = UUID.randomUUID().toString()
 
                 DetectedSession(
+                    id = 0,
+                    canonicalId = canonicalId,
                     sourcePlatform = SourcePlatform.ANDROID,
                     sourceKind = SourceKind.APP,
+                    detectorId = "android.usagestats",
                     toolId = matchResult.tool!!.id,
                     toolName = matchResult.tool!!.name,
+                    rawAppName = getAppLabel(rawSession.foregroundEvent.packageName),
                     packageName = rawSession.foregroundEvent.packageName,
-                    detectedAt = System.currentTimeMillis(),
+                    rawPackageName = rawSession.foregroundEvent.packageName,
+                    rawDomain = null,
+                    rawUrlPattern = null,
+                    detectedAt = now,
                     startedAt = startedAt,
                     endedAt = endedAt,
                     activeSeconds = durationSeconds,
-                    localDate = timestampToDate(startedAt),
+                    idleSeconds = 0,
+                    localDate = localDate,
+                    timezone = zoneId.id,
+                    isNight = isNight,
                     status = status,
                     confidence = matchResult.confidence,
-                    createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis()
+                    mergedIntoSessionId = null,
+                    promptCount = null,
+                    sourceFingerprint = null, // set after merge/split
+                    deviceId = deviceId,
+                    syncStatus = "local_only",
+                    createdAt = now,
+                    updatedAt = now
                 )
             }
         }
 
-        // Step 3: Merge sessions of the same tool within MERGE_WINDOW_MS
+        // Step 3: Merge adjacent
         val mergedSessions = mergeNearbySessions(matchedSessions)
 
-        // Step 4: Split cross-midnight sessions
+        // Step 4: Split cross-midnight
         val splitSessions = splitCrossMidnight(mergedSessions)
 
-        return splitSessions
+        // Step 5: Compute fingerprints
+        val finalized = splitSessions.map { s ->
+            s.copy(sourceFingerprint = computeFingerprint(s))
+        }
+
+        // Update open foreground state: if last event was foreground without background, persist
+        val lastEvent = events.lastOrNull()
+        if (lastEvent != null && lastEvent.eventType == RawEventType.FOREGROUND) {
+            val match = matcher.match(lastEvent)
+            if (match.tool != null && !match.ignored) {
+                saveOpenForegroundState(
+                    OpenForegroundState(
+                        packageName = lastEvent.packageName,
+                        startedAt = lastEvent.timestamp,
+                        toolId = match.tool.id
+                    )
+                )
+            } else {
+                saveOpenForegroundState(null)
+            }
+        } else {
+            saveOpenForegroundState(null)
+        }
+
+        return finalized
     }
 
     /**
      * Pair FOREGROUND and BACKGROUND events into raw sessions.
+     * Incorporates persisted open state.
      */
     private fun pairEvents(events: List<RawEvent>): List<RawSession> {
         val sessions = mutableListOf<RawSession>()
@@ -102,7 +202,6 @@ class Sessionizer {
         for (event in sorted) {
             when (event.eventType) {
                 RawEventType.FOREGROUND -> {
-                    // If there was a pending foreground without background, close it
                     if (pendingForeground != null) {
                         sessions.add(RawSession(pendingForeground, null))
                     }
@@ -113,38 +212,32 @@ class Sessionizer {
                         pendingForeground.packageName == event.packageName) {
                         sessions.add(RawSession(pendingForeground, event))
                         pendingForeground = null
-                    } else {
-                        // Background without matching foreground — skip
                     }
                 }
             }
         }
 
-        // Add any remaining foreground without background
-        if (pendingForeground != null) {
-            sessions.add(RawSession(pendingForeground, null))
-        }
+        // Don't add remaining foreground without background as a session here —
+        // the open foreground state persistence handles it for the next run.
+        // Only add if we're doing a one-shot check (caller will handle).
 
         return sessions
     }
 
-    /**
-     * Merge sessions of the same tool that are within MERGE_WINDOW_MS of each other.
-     */
     private fun mergeNearbySessions(sessions: List<DetectedSession>): List<DetectedSession> {
         if (sessions.isEmpty()) return emptyList()
+        if (sessions.size == 1) return sessions
 
+        val sorted = sessions.sortedBy { it.startedAt }
         val merged = mutableListOf<DetectedSession>()
-        var current = sessions.first()
+        var current = sorted.first()
 
-        for (i in 1 until sessions.size) {
-            val next = sessions[i]
-
+        for (i in 1 until sorted.size) {
+            val next = sorted[i]
             val isSameTool = current.toolId == next.toolId
             val isWithinWindow = next.startedAt - current.endedAt <= MERGE_WINDOW_MS
 
             if (isSameTool && isWithinWindow) {
-                // Merge: extend end time and sum duration
                 val mergedActiveSeconds = current.activeSeconds + next.activeSeconds +
                     ((next.startedAt - current.endedAt) / 1000)
                 current = current.copy(
@@ -159,60 +252,61 @@ class Sessionizer {
             }
         }
         merged.add(current)
-
         return merged
     }
 
-    /**
-     * Split sessions that cross midnight boundaries.
-     * A session is split if it starts before midnight and ends after midnight,
-     * or if it spans near midnight (23:50 - 00:10).
-     */
     private fun splitCrossMidnight(sessions: List<DetectedSession>): List<DetectedSession> {
         val result = mutableListOf<DetectedSession>()
 
         for (session in sessions) {
             val startInstant = Instant.ofEpochMilli(session.startedAt)
             val endInstant = Instant.ofEpochMilli(session.endedAt)
-            val startDate = LocalDate.ofInstant(startInstant, ZoneId.systemDefault())
-            val endDate = LocalDate.ofInstant(endInstant, ZoneId.systemDefault())
+            val zoneId = ZoneId.of(session.timezone)
+            val startDate = LocalDate.ofInstant(startInstant, zoneId)
+            val endDate = LocalDate.ofInstant(endInstant, zoneId)
 
             if (startDate == endDate) {
-                // Does not cross midnight, keep as is
                 result.add(session)
             } else {
-                // Crosses midnight: split into two sessions
-                val midnightMillis = endDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val midnightMillis = endDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
 
                 val beforeMidnightSeconds = (midnightMillis - session.startedAt) / 1000
                 val afterMidnightSeconds = (session.endedAt - midnightMillis) / 1000
 
-                // First part (before midnight)
+                val now = System.currentTimeMillis()
+
                 if (beforeMidnightSeconds >= MIN_SESSION_SECONDS) {
+                    val newId = UUID.randomUUID().toString()
                     result.add(
                         session.copy(
+                            id = 0,
+                            canonicalId = newId,
                             endedAt = midnightMillis,
                             activeSeconds = beforeMidnightSeconds,
                             localDate = startDate.toString(),
+                            isNight = isNightHour(zoneId, midnightMillis - 1000),
                             status = if (beforeMidnightSeconds < SUSPECTED_THRESHOLD_SECONDS)
                                 SessionStatus.SUSPECTED else session.status,
-                            id = 0, // New entity
-                            updatedAt = System.currentTimeMillis()
+                            updatedAt = now,
+                            sourceFingerprint = null // recomputed later
                         )
                     )
                 }
 
-                // Second part (after midnight)
                 if (afterMidnightSeconds >= MIN_SESSION_SECONDS) {
+                    val newId = UUID.randomUUID().toString()
                     result.add(
                         session.copy(
+                            id = 0,
+                            canonicalId = newId,
                             startedAt = midnightMillis,
                             activeSeconds = afterMidnightSeconds,
                             localDate = endDate.toString(),
+                            isNight = isNightHour(zoneId, midnightMillis),
                             status = if (afterMidnightSeconds < SUSPECTED_THRESHOLD_SECONDS)
                                 SessionStatus.SUSPECTED else session.status,
-                            id = 0, // New entity
-                            updatedAt = System.currentTimeMillis()
+                            updatedAt = now,
+                            sourceFingerprint = null
                         )
                     )
                 }
@@ -222,16 +316,49 @@ class Sessionizer {
         return result
     }
 
-    private fun timestampToDate(timestamp: Long): String {
-        return Instant.ofEpochMilli(timestamp)
-            .atZone(ZoneId.systemDefault())
-            .toLocalDate()
-            .toString()
+    private fun isNightHour(zoneId: ZoneId, epochMs: Long): Boolean {
+        val hour = LocalTime.ofInstant(Instant.ofEpochMilli(epochMs), zoneId).hour
+        return hour >= 22 || hour < 6
     }
 
-    /**
-     * Internal representation of a raw (foreground, background) event pair.
-     */
+    private fun computeFingerprint(session: DetectedSession): String {
+        val parts = listOf(
+            session.sourcePlatform.value,
+            session.sourceKind.value,
+            deviceId,
+            session.toolId,
+            session.rawPackageName ?: session.packageName,
+            (session.startedAt / 5000).toString(),
+            (session.endedAt / 5000).toString(),
+            session.activeSeconds.toString()
+        ).joinToString("|")
+
+        val digest = MessageDigest.getInstance("SHA-256").digest(parts.toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun loadOrCreateDeviceId(): String {
+        val existing = prefs.getString(KEY_DEVICE_ID, null)
+        if (!existing.isNullOrEmpty()) return existing
+        val newId = UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_DEVICE_ID, newId).apply()
+        return newId
+    }
+
+    private fun getAppLabel(packageName: String): String? {
+        return try {
+            val pm = appContext.packageManager
+            val appInfo = pm.getApplicationInfo(packageName, 0)
+            pm.getApplicationLabel(appInfo).toString()
+        } catch (_: Exception) { null }
+    }
+
+    data class OpenForegroundState(
+        val packageName: String,
+        val startedAt: Long,
+        val toolId: String
+    )
+
     private data class RawSession(
         val foregroundEvent: RawEvent,
         val backgroundEvent: RawEvent?

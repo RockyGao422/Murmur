@@ -93,20 +93,30 @@ class NativeMessagingClient {
     }
 
     const message = {
-      type: 'detected_session',
-      schemaVersion: 1,
+      type: 'detected_session.upsert',
+      schema_version: 1,
+      sent_at: new Date().toISOString(),
       payload: {
-        id: session.id || crypto.randomUUID(),
-        sourcePlatform: 'browser',
-        toolId: session.toolId,
-        toolName: session.toolName,
-        rawDomain: session.rawDomain,
-        rawUrlPattern: session.rawUrlPattern,
-        startedAt: session.startedAt,
-        endedAt: session.endedAt,
-        activeSeconds: session.activeSeconds,
+        id: session.id,
+        device_id: session.deviceId || '',
+        source_platform: 'browser',
+        source_kind: 'web',
+        detector_id: 'browser.extension',
+        tool_id: session.toolId,
+        tool_name: session.toolName,
+        raw_domain: session.rawDomain,
+        raw_url_pattern: session.rawUrlPattern,
+        started_at: session.startedAt,
+        ended_at: session.endedAt,
+        active_seconds: session.activeSeconds,
+        idle_seconds: session.idleSeconds || 0,
+        local_date: session.localDate,
+        timezone: session.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        is_night: session.isNight || false,
         confidence: session.confidence,
-        promptCount: session.promptCount || undefined
+        status: session.status,
+        prompt_count: session.promptCount || null,
+        source_fingerprint: session.sourceFingerprint || null
       }
     };
 

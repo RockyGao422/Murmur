@@ -125,13 +125,13 @@ function downloadCSV(content, filename, mimeType) {
 
 function downloadSessionsCSV(sessions, dateStr) {
   const csv = exportSessionsCSV(sessions);
-  const date = dateStr || new Date().toISOString().slice(0, 10);
+  const date = dateStr || new Date().toLocaleDateString('en-CA');
   downloadCSV(csv, `murmur_detected_sessions_${date}.csv`);
 }
 
 function downloadEntriesCSV(entries, dateStr) {
   const csv = exportEntriesCSV(entries);
-  const date = dateStr || new Date().toISOString().slice(0, 10);
+  const date = dateStr || new Date().toLocaleDateString('en-CA');
   downloadCSV(csv, `murmur_ledger_entries_${date}.csv`);
 }
 

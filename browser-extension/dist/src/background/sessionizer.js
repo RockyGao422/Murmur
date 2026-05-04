@@ -227,8 +227,8 @@ async function checkAndMergeAdjacent(session) {
 
 function crossesMidnight(session) {
   if (!session.endedAt) return false;
-  return new Date(session.startedAt).toISOString().slice(0, 10) !==
-         new Date(session.endedAt).toISOString().slice(0, 10);
+  return new Date(session.startedAt).toLocaleDateString('en-CA') !==
+         new Date(session.endedAt).toLocaleDateString('en-CA');
 }
 
 // ============================================================================

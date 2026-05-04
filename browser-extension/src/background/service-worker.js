@@ -259,8 +259,14 @@ async function handleMessage(message, sender) {
           isOnAISite: isAI,
           currentSession: session ? {
             id: session.id,
+            toolId: session.toolId,
             toolName: session.toolName,
+            sourcePlatform: session.sourcePlatform,
+            sourceKind: session.sourceKind,
             domain: session.rawDomain || session.domain,
+            rawDomain: session.rawDomain,
+            localDate: session.localDate,
+            timezone: session.timezone,
             startTime: session.startedAt || session.startTime,
             duration: session.endedAt
               ? (session.activeSeconds || session.duration || 0)
@@ -293,6 +299,9 @@ async function handleMessage(message, sender) {
         return { success: false, error: 'No active domain' };
       }
       const session = await quickEndSession(domain);
+      if (!session) {
+        return { success: false, error: 'No active session for this domain (may have already ended)' };
+      }
       return {
         success: true,
         data: session,
@@ -488,16 +497,78 @@ async function handleMessage(message, sender) {
     // ========================================================================
     // Ledger Entry save
     // ========================================================================
+    case 'completeAndSaveEntry': {
+      // Save entry first. If entry fails, session is untouched → user can retry.
+      // Only after entry is persisted do we finalize and remove the active session.
+      if (!payload || !payload.entry) {
+        return { success: false, error: 'No entry data provided' };
+      }
+      const domain = payload.domain || getCurrentTabInfo().domain;
+      if (!domain) {
+        return { success: false, error: 'No active domain' };
+      }
+      const activeSession = getSessionForDomain(domain);
+      if (!activeSession) {
+        return { success: false, error: 'No active session for this domain' };
+      }
+      try {
+        // Step 1: Save entry first (session is still active; failure → retry-safe)
+        const entry = {
+          ...payload.entry,
+          detectedSessionId: payload.entry.detectedSessionId || activeSession.id,
+        };
+        await saveEntry(entry);
+
+        // Step 2: Entry persisted — now finalize session as COMPLETED
+        const now = new Date().toISOString();
+        const startedAt = new Date(activeSession.startedAt || activeSession.startTime);
+        const elapsedSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000);
+
+        const completedSession = {
+          ...activeSession,
+          endedAt: now,
+          activeSeconds: elapsedSeconds > 0 ? elapsedSeconds : (activeSession.activeSeconds || 0),
+          status: SessionStatus.COMPLETED,
+          updatedAt: now,
+        };
+
+        // Persist completed session (throws on failure, but entry already saved)
+        await saveSession(completedSession);
+        // Remove from in-memory active sessions
+        if (typeof activeSessions !== 'undefined' && activeSessions.delete) {
+          activeSessions.delete(domain);
+        }
+        if (typeof domainToolMap !== 'undefined' && domainToolMap.delete) {
+          domainToolMap.delete(domain);
+        }
+        saveActiveSession(null);
+
+        // Verify session is findable in storage (best effort)
+        const updated = await updateSession(completedSession.id, {
+          status: SessionStatus.COMPLETED, endedAt: now, activeSeconds: completedSession.activeSeconds, updatedAt: now,
+        });
+        if (!updated) {
+          console.warn('[Murmur SW] Entry saved, session finalized, but updateSession could not confirm:', completedSession.id);
+        }
+
+        return { success: true, data: { session: completedSession, entry } };
+      } catch (err) {
+        return { success: false, error: err.message };
+      }
+    }
+
     case 'saveEntry': {
       if (!payload || !payload.entry) {
         return { success: false, error: 'No entry data provided' };
       }
       try {
         await saveEntry(payload.entry);
-        // Update the linked session to completed
         const sessionId = payload.entry.detectedSessionId || payload.entry.sessionId;
         if (sessionId) {
-          await updateSession(sessionId, { status: SessionStatus.COMPLETED, updatedAt: new Date().toISOString() });
+          const updated = await updateSession(sessionId, { status: SessionStatus.COMPLETED, updatedAt: new Date().toISOString() });
+          if (!updated) {
+            return { success: false, error: 'Entry saved but linked session could not be marked completed' };
+          }
         }
         return { success: true };
       } catch (err) {

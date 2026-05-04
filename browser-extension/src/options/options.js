@@ -320,7 +320,7 @@ async function onExportSessions() {
 
   // Use shared csv-exporter — privacy-first, no URL column
   const csv = exportSessionsCSV(response.data);
-  const date = new Date().toISOString().slice(0, 10);
+  const date = new Date().toLocaleDateString('en-CA');
   downloadCSV(csv, `murmur_detected_sessions_${date}.csv`);
   showToast('导出成功', 'success');
 }
@@ -337,7 +337,7 @@ async function onExportEntries() {
 
   // Use shared csv-exporter — fields aligned with shared schema
   const csv = exportEntriesCSV(response.data);
-  const date = new Date().toISOString().slice(0, 10);
+  const date = new Date().toLocaleDateString('en-CA');
   downloadCSV(csv, `murmur_ledger_entries_${date}.csv`);
   showToast('导出成功', 'success');
 }
@@ -353,7 +353,7 @@ async function onExportAll() {
   }
 
   const json = JSON.stringify(response.data, null, 2);
-  const date = new Date().toISOString().slice(0, 10);
+  const date = new Date().toLocaleDateString('en-CA');
   downloadFile(json, `murmur-all-data-${date}.json`, 'application/json');
   showToast('导出成功', 'success');
 }

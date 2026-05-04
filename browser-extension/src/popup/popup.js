@@ -285,69 +285,94 @@ async function onCompleteSession() {
   const s = status.data.currentSession;
   completionSessionData = s;
 
-  // Fill completion form and show it
+  // Fill completion form defaults
+  const durationMinutes = Math.floor((s.duration || 0) / 60);
   document.getElementById('compToolName').textContent = s.toolName || '';
   document.getElementById('compDomain').textContent = s.domain || '';
   document.getElementById('compDuration').textContent = formatDuration(s.duration || 0);
+  document.getElementById('compUseCase').value = 'other';
   document.getElementById('compSavedMinutes').value = '15';
+  document.getElementById('compPromptMinutes').value = String(Math.min(durationMinutes || 5, 5));
+  document.getElementById('compReviewMinutes').value = '5';
+  document.getElementById('compEditMinutes').value = '0';
+  document.getElementById('compDebugMinutes').value = '0';
+  document.getElementById('compReworkMinutes').value = '0';
   document.getElementById('compQuality').value = 'minor_edit';
   document.getElementById('compMood').value = 'neutral';
+  document.getElementById('compNote').value = '';
+  document.getElementById('compError').style.display = 'none';
 
   document.getElementById('actionsSection').style.display = 'none';
   document.getElementById('completionSection').style.display = 'block';
 }
 
+function getVal(id) { return parseInt(document.getElementById(id).value) || 0; }
+
 async function onSaveCompletion() {
   if (!completionSessionData) return;
 
-  // End the session first
-  const domain = completionSessionData.domain;
-  const endResp = await sendMessage('quickComplete', { domain });
-  if (!endResp.success) return;
+  const useCase = document.getElementById('compUseCase').value;
+  const useCaseLabels = { other: '其他', code_review: '代码审查', debugging: '调试排错',
+    content_writing: '内容写作', research: '研究分析', learning: '学习辅助', translation: '翻译' };
 
-  const estimatedSavedMinutes = parseInt(document.getElementById('compSavedMinutes').value) || 15;
+  const estimatedSavedMinutes = getVal('compSavedMinutes');
+  const promptMinutes = getVal('compPromptMinutes');
+  const reviewMinutes = getVal('compReviewMinutes');
+  const editMinutes = getVal('compEditMinutes');
+  const debugMinutes = getVal('compDebugMinutes');
+  const reworkMinutes = getVal('compReworkMinutes');
   const quality = document.getElementById('compQuality').value;
   const mood = document.getElementById('compMood').value;
-  const durationMinutes = Math.floor((completionSessionData.duration || 0) / 60);
+  const note = document.getElementById('compNote').value.trim() || null;
 
-  // Calculate derived fields
-  const promptMinutes = Math.min(durationMinutes || 5, 5);
-  const reviewMinutes = 5;
-  const extraCost = promptMinutes + reviewMinutes;
-  const netGain = estimatedSavedMinutes - extraCost;
+  const totalExtraCostMinutes = promptMinutes + reviewMinutes + editMinutes + debugMinutes + reworkMinutes;
+  const netGainMinutes = estimatedSavedMinutes - totalExtraCostMinutes;
+
+  const qualityMap = { direct_use: [4, 0], minor_edit: [3, 4], major_edit: [2, 9], useless: [1, 14] };
+  const moodMap = { easy: 0, neutral: 2, irritated: 6, tired: 8, anxious: 10 };
+  const [qualityScore, qualityPenalty] = qualityMap[quality] || [3, 4];
 
   const entry = {
-    id: crypto.randomUUID ? crypto.randomUUID() : 'le-' + Date.now(),
-    detectedSessionId: endResp.data?.id || completionSessionData.id,
-    sourcePlatform: SourcePlatform?.BROWSER || 'browser',
+    id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'le-' + Date.now(),
+    detectedSessionId: completionSessionData.id,
+    sourcePlatform: completionSessionData.sourcePlatform || 'browser',
+    sourceKind: completionSessionData.sourceKind || 'web',
     toolId: completionSessionData.toolId || '',
     toolName: completionSessionData.toolName || '',
-    useCaseId: 'other',
-    useCaseName: '其他',
+    useCaseId: useCase,
+    useCaseName: useCaseLabels[useCase] || '其他',
     estimatedSavedMinutes,
     promptMinutes,
     reviewMinutes,
-    editMinutes: 0,
-    debugMinutes: 0,
-    reworkMinutes: 0,
-    totalExtraCostMinutes: extraCost,
-    netGainMinutes: netGain,
+    editMinutes,
+    debugMinutes,
+    reworkMinutes,
+    totalExtraCostMinutes,
+    netGainMinutes,
     quality,
-    qualityScore: quality === 'direct_use' ? 4 : quality === 'minor_edit' ? 3 : quality === 'major_edit' ? 2 : 1,
-    qualityPenalty: quality === 'direct_use' ? 0 : quality === 'minor_edit' ? 4 : quality === 'major_edit' ? 9 : 14,
+    qualityScore,
+    qualityPenalty,
     mood,
-    moodWeight: mood === 'easy' ? 0 : mood === 'neutral' ? 2 : mood === 'irritated' ? 6 : mood === 'tired' ? 8 : 10,
-    hasRework: quality === 'useless' || netGain < 0,
-    note: null,
-    localDate: new Date().toLocaleDateString('en-CA'),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    moodWeight: moodMap[mood] || 2,
+    hasRework: reworkMinutes > 0 || quality === 'useless' || (netGainMinutes < 0 && totalExtraCostMinutes >= estimatedSavedMinutes),
+    note,
+    localDate: completionSessionData.localDate || new Date().toLocaleDateString('en-CA'),
+    timezone: completionSessionData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
 
-  await sendMessage('saveEntry', { entry });
+  // Atomic: end session + save entry in one service-worker operation
+  const domain = completionSessionData.domain;
+  const resp = await sendMessage('completeAndSaveEntry', { entry, domain });
+  if (!resp.success) {
+    document.getElementById('compError').textContent = '保存失败: ' + (resp.error || '未知错误');
+    document.getElementById('compError').style.display = 'block';
+    return;
+  }
 
   document.getElementById('completionSection').style.display = 'none';
+  document.getElementById('compError').style.display = 'none';
   completionSessionData = null;
   stopTimer();
   await refreshStatus();

@@ -52,13 +52,9 @@ async function getSessions() {
  * @returns {Promise<void>}
  */
 async function saveSession(session) {
-  try {
-    const sessions = await getSessions();
-    sessions.push(session);
-    await chrome.storage.local.set({ [STORAGE_KEYS.SESSIONS]: sessions });
-  } catch (err) {
-    console.error('[Murmur Storage] Failed to save session:', err);
-  }
+  const sessions = await getSessions();
+  sessions.push(session);
+  await chrome.storage.local.set({ [STORAGE_KEYS.SESSIONS]: sessions });
 }
 
 /**
@@ -94,9 +90,12 @@ async function updateSession(id, updates) {
 async function getSessionsByDate(dateStr) {
   const sessions = await getSessions();
   return sessions.filter((s) => {
+    // Prefer explicit localDate (set at session creation time in local timezone)
+    if (s.localDate) return s.localDate === dateStr;
+    // Fallback: parse startedAt / startTime in local time
     const d = s.startedAt || s.startTime;
     if (!d) return false;
-    const datePart = typeof d === 'string' ? d.slice(0, 10) : new Date(d).toISOString().slice(0, 10);
+    const datePart = new Date(d).toLocaleDateString('en-CA');
     return datePart === dateStr;
   });
 }
@@ -154,6 +153,7 @@ async function saveEntry(entry) {
     await chrome.storage.local.set({ [STORAGE_KEYS.ENTRIES]: entries });
   } catch (err) {
     console.error('[Murmur Storage] Failed to save entry:', err);
+    throw err;
   }
 }
 
@@ -164,9 +164,14 @@ async function saveEntry(entry) {
  */
 async function getEntriesByDate(dateStr) {
   const entries = await getEntries();
-  const dayStart = new Date(dateStr + 'T00:00:00').getTime();
-  const dayEnd = new Date(dateStr + 'T23:59:59.999').getTime();
-  return entries.filter((e) => e.createdAt >= dayStart && e.createdAt <= dayEnd);
+  return entries.filter((e) => {
+    // Prefer explicit localDate (set at entry creation time in local timezone)
+    if (e.localDate) return e.localDate === dateStr;
+    // Fallback: parse createdAt in local time (handles both ISO string and epoch number)
+    const d = e.createdAt;
+    if (!d) return false;
+    return new Date(d).toLocaleDateString('en-CA') === dateStr;
+  });
 }
 
 // ============================================================================
@@ -214,7 +219,7 @@ async function saveDailySummary(summary) {
  * @returns {Promise<import('./types.js').DailySummary|null>}
  */
 async function getTodaySummary() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date().toLocaleDateString('en-CA');
   const summaries = await getDailySummaries();
   return summaries.find((s) => s.id === today) || null;
 }

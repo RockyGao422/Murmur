@@ -10,19 +10,36 @@
  * @returns {Object}
  */
 function generateReview(sessions, entries, weekStart) {
-  const weekStartTime = new Date(weekStart + 'T00:00:00').getTime();
-  const weekEnd = new Date(weekStart + 'T00:00:00');
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  const weekEndTime = weekEnd.getTime();
-  const weekEndStr = weekEnd.toISOString().slice(0, 10);
+  // Build set of dates in the week (local date strings YYYY-MM-DD)
+  const weekStartDate = new Date(weekStart + 'T00:00:00');
+  const weekDates = new Set();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(weekStartDate);
+    d.setDate(d.getDate() + i);
+    weekDates.add(d.toLocaleDateString('en-CA'));
+  }
+  const weekEndDate = new Date(weekStartDate);
+  weekEndDate.setDate(weekEndDate.getDate() + 7);
+  const weekEndStr = weekEndDate.toLocaleDateString('en-CA');
 
   const weekSessions = sessions.filter((s) => {
-    const t = typeof s.startedAt === 'string' ? new Date(s.startedAt).getTime() : (s.startTime || 0);
-    return t >= weekStartTime && t < weekEndTime;
+    if (s.localDate) return weekDates.has(s.localDate);
+    // Fallback: parse startedAt in local time
+    const d = s.startedAt || s.startTime;
+    if (!d) return false;
+    return weekDates.has(new Date(d).toLocaleDateString('en-CA'));
+  });
+
+  // Filter entries to the same week
+  const weekEntries = entries.filter((e) => {
+    if (e.localDate) return weekDates.has(e.localDate);
+    const d = e.createdAt;
+    if (!d) return false;
+    return weekDates.has(new Date(d).toLocaleDateString('en-CA'));
   });
 
   const totalSeconds = weekSessions.reduce((sum, s) => sum + (s.activeSeconds || s.duration || 0), 0);
-  const totalNetGain = entries.reduce((sum, e) => sum + (e.netGainMinutes || 0), 0);
+  const totalNetGain = weekEntries.reduce((sum, e) => sum + (e.netGainMinutes || 0), 0);
   const pendingCount = weekSessions.filter(
     (s) => s.status === SessionStatus.PENDING || s.status === SessionStatus.SUSPECTED
   ).length;

@@ -470,6 +470,15 @@ body::-webkit-scrollbar-thumb:hover {
   min-width: 80px;
 }
 
+.completion-form .form-error {
+  padding: 6px 10px;
+  margin-top: 8px;
+  background: var(--danger-bg, #fef2f2);
+  color: var(--danger-color, #dc2626);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 .completion-form .form-actions {
   display: flex;
   gap: 8px;

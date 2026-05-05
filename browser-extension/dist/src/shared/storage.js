@@ -10,6 +10,7 @@ const STORAGE_KEYS = Object.freeze({
   SETTINGS: 'murmur_settings',
   IGNORED_DOMAINS: 'murmur_ignored_domains',
   ACTIVE_SESSION: 'murmur_active_session',
+  ACTIVE_SESSIONS_MAP: 'murmur_active_sessions_by_key',
   PROMPT_COUNTS: 'murmur_prompt_counts',
   SYNC_QUEUE: 'murmur_sync_queue',
   DEVICE_ID: 'murmur_device_id',
@@ -378,6 +379,33 @@ async function incrementPromptCount(sessionId) {
   }
 }
 
+/**
+ * Persist all active sessions as a map keyed by "windowId:tabId".
+ * Used for multi-tab recovery after service worker restart.
+ * @param {Object<string, Object>} sessionsByKey
+ * @returns {Promise<void>}
+ */
+async function saveActiveSessionsMap(sessionsByKey) {
+  try {
+    await chrome.storage.local.set({ [STORAGE_KEYS.ACTIVE_SESSIONS_MAP]: sessionsByKey });
+  } catch (err) {
+    console.error('[Murmur Storage] Failed to save active sessions map:', err);
+  }
+}
+
+/**
+ * Recover active sessions map after service worker restart.
+ * @returns {Promise<Object<string, Object>>}
+ */
+async function getActiveSessionsMap() {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.ACTIVE_SESSIONS_MAP);
+    return result[STORAGE_KEYS.ACTIVE_SESSIONS_MAP] || {};
+  } catch (err) {
+    return {};
+  }
+}
+
 // ============================================================================
 // Sync Queue (Native Messaging)
 // ============================================================================
@@ -558,6 +586,9 @@ if (typeof globalThis !== 'undefined') {
     // Active session
     saveActiveSession,
     getActiveSession,
+    // Active sessions map (multi-tab recovery)
+    saveActiveSessionsMap,
+    getActiveSessionsMap,
     // Prompt counts
     getPromptCount,
     incrementPromptCount,

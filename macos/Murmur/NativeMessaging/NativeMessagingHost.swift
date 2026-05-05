@@ -95,6 +95,13 @@ final class NativeMessagingHost {
         let decoder = JSONDecoder()
         let encoder = JSONEncoder()
 
+        // Send connection_ack immediately so the browser extension knows the host is ready.
+        sendResponse(
+            HostResponse(status: "ok", message: "connected", sessionId: nil),
+            encoder: encoder,
+            type: "connection_ack"
+        )
+
         while isRunning {
             guard let lengthData = try? stdin.read(upToCount: 4),
                   lengthData.count == 4 else {
@@ -177,8 +184,14 @@ final class NativeMessagingHost {
         return hour >= 22 || hour < 6
     }
 
-    private func sendResponse(_ response: HostResponse, encoder: JSONEncoder) {
-        guard let data = try? encoder.encode(response) else { return }
+    private func sendResponse(_ response: HostResponse, encoder: JSONEncoder, type: String = "response") {
+        let wrapper: [String: Any] = [
+            "type": type,
+            "status": response.status,
+            "message": response.message,
+            "session_id": response.sessionId as Any
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: wrapper, options: []) else { return }
         var length = UInt32(data.count).littleEndian
         let lengthData = Data(bytes: &length, count: 4)
         let stdout = FileHandle.standardOutput

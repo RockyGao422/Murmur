@@ -51,14 +51,8 @@ class DetectionWorker(
                 return@withContext Result.success()
             }
 
-            // Check night hours
-            val nightStart = settingsRepo.nightHoursStart.first()
-            val nightEnd = settingsRepo.nightHoursEnd.first()
-            val now = LocalDateTime.now()
-            if (isInNightHours(now.hour, nightStart, nightEnd)) {
-                Log.d(TAG, "In night hours ($nightStart-$nightEnd), skipping")
-                return@withContext Result.success()
-            }
+            // Night hours are still detected and recorded (sessions tagged with isNight).
+            // Notification/reminder suppression is handled separately by UI/presentation layer.
 
             // Get last processed timestamp with overlap window for delayed events
             val overlapWindowMs = TimeUnit.MINUTES.toMillis(2)
@@ -109,12 +103,4 @@ class DetectionWorker(
         }
     }
 
-    private fun isInNightHours(hour: Int, nightStart: Int, nightEnd: Int): Boolean {
-        return if (nightStart > nightEnd) {
-            // Wraps around midnight (e.g., 22:00 - 07:00)
-            hour >= nightStart || hour < nightEnd
-        } else {
-            hour in nightStart until nightEnd
-        }
-    }
 }

@@ -69,37 +69,61 @@ function computeFingerprint(session) {
 async function initSessionizer() {
   settings = await getSettings();
   await getDeviceId();
+
+  // Try new multi-session map first, fallback to legacy single-session key
+  const sessionsByKey = await getActiveSessionsMap();
+  const entries = Object.entries(sessionsByKey || {});
+
+  if (entries.length > 0) {
+    // New format: restore all active sessions from map
+    for (const [key, wrapper] of entries) {
+      if (!wrapper || !wrapper.session) continue;
+      const session = wrapper.session;
+      const accumulatedSeconds = wrapper.accumulatedSeconds || 0;
+
+      if (!session.endedAt) {
+        const now = new Date().toISOString();
+        if (wrapper.isActive && wrapper.lastActiveStartedAt) {
+          const delta = Math.floor((Date.now() - new Date(wrapper.lastActiveStartedAt).getTime()) / 1000);
+          session.activeSeconds = accumulatedSeconds + Math.max(0, delta);
+        } else {
+          session.activeSeconds = accumulatedSeconds;
+        }
+        session.endedAt = now;
+        session.status = session.activeSeconds < (settings?.suspectedThresholdSeconds || 30)
+          ? SessionStatus.SUSPECTED : SessionStatus.PENDING;
+        session.updatedAt = now;
+        await saveSession(session);
+        console.log('[Murmur Sessionizer] Recovered session:', session.id, 'key:', key);
+      }
+    }
+    return;
+  }
+
+  // Fallback: legacy single-session key
   const stored = await getActiveSession();
   if (!stored) return;
 
-  // Unwrap: support both old format (plain DetectedSession) and new format (wrapper with .session)
   const wrapper = (stored.session && typeof stored.isActive !== 'undefined') ? stored : null;
   const session = wrapper ? wrapper.session : stored;
-  const key = wrapper ? wrapper.key : null;
   const accumulatedSeconds = wrapper ? (wrapper.accumulatedSeconds || 0) : 0;
 
   if (session && !session.endedAt) {
     const now = new Date().toISOString();
-
-    // If wrapper format, add any accumulated time plus pending delta
     if (wrapper && wrapper.isActive && wrapper.lastActiveStartedAt) {
       const delta = Math.floor((Date.now() - new Date(wrapper.lastActiveStartedAt).getTime()) / 1000);
       session.activeSeconds = accumulatedSeconds + Math.max(0, delta);
     } else if (wrapper) {
       session.activeSeconds = accumulatedSeconds;
     } else {
-      // Legacy format: compute elapsed from startedAt
       const elapsed = Math.floor((Date.now() - new Date(session.startedAt).getTime()) / 1000);
       session.activeSeconds = Math.max(0, elapsed);
     }
-
     session.endedAt = now;
     session.status = session.activeSeconds < (settings?.suspectedThresholdSeconds || 30)
       ? SessionStatus.SUSPECTED : SessionStatus.PENDING;
     session.updatedAt = now;
-
     await saveSession(session);
-    console.log('[Murmur Sessionizer] Recovered session on restart:', session.id, 'activeSeconds:', session.activeSeconds);
   }
 }
 
@@ -220,6 +244,19 @@ function pauseSession(key) {
   return state;
 }
 
+/**
+ * After a session is finalized and saved, enqueue for Native Messaging sync if enabled.
+ */
+async function enqueueForSync(session) {
+  try {
+    const s = await getSettings();
+    if (s.nativeMessagingEnabled) {
+      await addToSyncQueue(session.id);
+      await updateSessionSyncStatus(session.id, SyncStatus.PENDING);
+    }
+  } catch (_) { /* best-effort */ }
+}
+
 function handleSuspectedAbandon(key) {
   const state = activeSessions.get(key);
   if (!state) return;
@@ -239,11 +276,12 @@ function handleSuspectedAbandon(key) {
 
   state.session.activeSeconds = state.accumulatedSeconds;
   state.session.endedAt = new Date().toISOString();
-  state.session.status = SessionStatus.SUSPECTED;
+  state.session.status = state.accumulatedSeconds < (settings?.suspectedThresholdSeconds || 30)
+    ? SessionStatus.SUSPECTED : SessionStatus.PENDING;
   state.session.updatedAt = new Date().toISOString();
   state.session.sourceFingerprint = computeFingerprint(state.session);
 
-  saveSession({ ...state.session });
+  saveSession({ ...state.session }).then(() => enqueueForSync(state.session));
   activeSessions.delete(key);
   if (currentActiveKey === key) currentActiveKey = null;
   saveActiveSession(null);
@@ -282,6 +320,7 @@ async function endSession(key) {
 
   await checkAndMergeAdjacent(state.session);
   await saveSession({ ...state.session });
+  await enqueueForSync(state.session);
   activeSessions.delete(key);
   if (currentActiveKey === key) currentActiveKey = null;
   saveActiveSession(null);
@@ -307,6 +346,7 @@ async function quickEndSession(key) {
   state.session.sourceFingerprint = computeFingerprint(state.session);
 
   await saveSession({ ...state.session });
+  await enqueueForSync(state.session);
   activeSessions.delete(key);
   if (currentActiveKey === key) currentActiveKey = null;
   saveActiveSession(null);
@@ -484,6 +524,7 @@ function getActiveSessionCount() {
 
 async function flushAll() {
   const now = new Date().toISOString();
+  const sessionsByKey = {};
   for (const [key, state] of activeSessions) {
     // Accumulate any pending delta
     if (state.isActive && state.lastActiveStartedAt) {
@@ -493,8 +534,14 @@ async function flushAll() {
     }
     state.session.activeSeconds = state.accumulatedSeconds;
     state.session.updatedAt = now;
-    await saveActiveSession({ key, ...state, lastActiveStartedAt: state.lastActiveStartedAt });
+    sessionsByKey[key] = {
+      session: state.session,
+      isActive: state.isActive,
+      lastActiveStartedAt: state.lastActiveStartedAt,
+      accumulatedSeconds: state.accumulatedSeconds,
+    };
   }
+  await saveActiveSessionsMap(sessionsByKey);
 }
 
 async function endAllSessions() {

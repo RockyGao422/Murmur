@@ -126,14 +126,15 @@ struct SessionAggregator {
         let (appSec, webSec) = calculateAppWebBreakdown(included)
         let promptTotal = included.reduce(0) { $0 + ($1.promptCount ?? 0) }
 
+        let gross = calculateGrossActiveSeconds(included)
         return DailySummary(
             id: localDate,
             localDate: localDate,
             detectedSessionCount: included.count,
             pendingSessionCount: included.filter { $0.status == .pending }.count,
             completedSessionCount: included.filter { $0.status == .completed }.count,
-            suspectedSessionCount: included.filter { $0.status == .suspected }.count,
-            grossActiveSeconds: calculateGrossActiveSeconds(included),
+            detectedActiveSeconds: gross,
+            grossActiveSeconds: gross,
             dedupedActiveSeconds: calculateDedupedActiveSeconds(included),
             appActiveSeconds: appSec,
             webActiveSeconds: webSec,

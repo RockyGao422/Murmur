@@ -7,7 +7,8 @@
   "ignored_session_count": 0,
   "suspected_session_count": 1,
   "gross_active_seconds": 7920,
-  "deduped_active_seconds": 5400,
+  "deduped_active_seconds": 7920,
+  "_deduped_note": "All 6 fixture sessions have non-overlapping time ranges, so deduped equals gross. When real overlapping sessions exist (e.g. macOS app + browser web simultaneously), deduped will be lower than gross."
   "app_active_seconds": 7020,
   "web_active_seconds": 900,
   "prompt_count": 4,

@@ -203,7 +203,13 @@ class Sessionizer(context: Context) {
             when (event.eventType) {
                 RawEventType.FOREGROUND -> {
                     if (pendingForeground != null) {
-                        sessions.add(RawSession(pendingForeground, null))
+                        // Close previous foreground at new foreground's time to prevent over-counting
+                        val closureEvent = RawEvent(
+                            packageName = pendingForeground.packageName,
+                            eventType = RawEventType.BACKGROUND,
+                            timestamp = event.timestamp
+                        )
+                        sessions.add(RawSession(pendingForeground, closureEvent))
                     }
                     pendingForeground = event
                 }
@@ -217,9 +223,8 @@ class Sessionizer(context: Context) {
             }
         }
 
-        // Don't add remaining foreground without background as a session here —
-        // the open foreground state persistence handles it for the next run.
-        // Only add if we're doing a one-shot check (caller will handle).
+        // Persist remaining unclosed foreground as open state for next run
+        // (it will be paired when the next worker run sees the background or next foreground)
 
         return sessions
     }
@@ -238,8 +243,8 @@ class Sessionizer(context: Context) {
             val isWithinWindow = next.startedAt - current.endedAt <= MERGE_WINDOW_MS
 
             if (isSameTool && isWithinWindow) {
-                val mergedActiveSeconds = current.activeSeconds + next.activeSeconds +
-                    ((next.startedAt - current.endedAt) / 1000)
+                // Sum active seconds only — gap time is NOT active usage
+                val mergedActiveSeconds = current.activeSeconds + next.activeSeconds
                 current = current.copy(
                     endedAt = next.endedAt,
                     activeSeconds = mergedActiveSeconds,

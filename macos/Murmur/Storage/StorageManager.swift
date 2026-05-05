@@ -1,6 +1,8 @@
 import Foundation
 
 class StorageManager: ObservableObject {
+    static let shared = StorageManager()
+
     private let fileManager = FileManager.default
     private let queue = DispatchQueue(label: "com.murmur.storage", attributes: .concurrent)
     private let jsonEncoder: JSONEncoder

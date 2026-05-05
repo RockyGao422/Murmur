@@ -65,6 +65,51 @@ struct DetectedSession: Codable, Identifiable, Equatable {
         case updatedAt = "updated_at"
     }
 
+    /// Explicit memberwise initializer required because custom Decodable init removes synthesis.
+    init(
+        id: String, sourcePlatform: SourcePlatform, sourceKind: SourceKind, detectorId: String,
+        toolId: String? = nil, toolName: String? = nil, rawAppName: String? = nil,
+        rawBundleId: String? = nil, rawPackageName: String? = nil, rawDomain: String? = nil,
+        rawUrlPattern: String? = nil, windowTitleHash: String? = nil,
+        startedAt: Date, endedAt: Date, activeSeconds: Int, idleSeconds: Int = 0,
+        localDate: String, timezone: String = "", isNight: Bool = false,
+        confidence: Double, status: SessionStatus, mergedIntoSessionId: String? = nil,
+        promptCount: Int = 0, deviceId: String = "", sourceSessionId: String? = nil,
+        sourceFingerprint: String? = nil, syncStatus: SyncStatus = .localOnly,
+        syncedAt: Date? = nil, createdAt: Date, updatedAt: Date
+    ) {
+        self.id = id
+        self.sourcePlatform = sourcePlatform
+        self.sourceKind = sourceKind
+        self.detectorId = detectorId
+        self.toolId = toolId
+        self.toolName = toolName
+        self.rawAppName = rawAppName
+        self.rawBundleId = rawBundleId
+        self.rawPackageName = rawPackageName
+        self.rawDomain = rawDomain
+        self.rawUrlPattern = rawUrlPattern
+        self.windowTitleHash = windowTitleHash
+        self.startedAt = startedAt
+        self.endedAt = endedAt
+        self.activeSeconds = activeSeconds
+        self.idleSeconds = idleSeconds
+        self.localDate = localDate
+        self.timezone = timezone
+        self.isNight = isNight
+        self.confidence = confidence
+        self.status = status
+        self.mergedIntoSessionId = mergedIntoSessionId
+        self.promptCount = promptCount
+        self.deviceId = deviceId
+        self.sourceSessionId = sourceSessionId
+        self.sourceFingerprint = sourceFingerprint
+        self.syncStatus = syncStatus
+        self.syncedAt = syncedAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
     /// Custom decoder that provides defaults for new fields added in v2,
     /// so existing detected_sessions.json files without these keys still load.
     init(from decoder: Decoder) throws {

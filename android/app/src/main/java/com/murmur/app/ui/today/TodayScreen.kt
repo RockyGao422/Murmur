@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,11 +29,7 @@ fun TodayScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-    PullToRefreshBox(
-        isRefreshing = uiState.isLoading,
-        onRefresh = { viewModel.refresh() },
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         if (uiState.isLoading && uiState.todaySessions.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -53,7 +48,9 @@ fun TodayScreen(
                     DetectionStatusCard(
                         isActive = uiState.isDetectionActive,
                         hasPermission = uiState.hasPermission,
-                        sessionCount = uiState.stats.sessionCount
+                        sessionCount = uiState.stats.sessionCount,
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = { viewModel.refresh() }
                     )
                 }
 
@@ -105,7 +102,9 @@ fun TodayScreen(
 private fun DetectionStatusCard(
     isActive: Boolean,
     hasPermission: Boolean,
-    sessionCount: Int
+    sessionCount: Int,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit
 ) {
     val (statusColor, statusText, icon) = when {
         !hasPermission -> Triple(
@@ -156,6 +155,24 @@ private fun DetectionStatusCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+
+            IconButton(
+                onClick = onRefresh,
+                enabled = !isRefreshing
+            ) {
+                if (isRefreshing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        tint = statusColor
+                    )
+                }
             }
         }
     }

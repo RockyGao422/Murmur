@@ -151,8 +151,13 @@ object WeeklyReviewEngine {
 
         // Quality insight
         if (entries.isNotEmpty()) {
-            val avgQuality = entries.map { it.quality.qualityScore.toFloat() }.average()
-            if (avgQuality >= 0.85f) {
+            val avgQuality = entries
+                .map { it.quality.qualityScore.toFloat() }
+                .average()
+                .toFloat()
+                .coerceIn(1.0f, 4.0f)
+            val normalizedQuality = ((avgQuality - 1.0f) / 3.0f).coerceIn(0.0f, 1.0f)
+            if (normalizedQuality >= 0.85f) {
                 insights.add(
                     Insight(
                         title = "AI 产出质量高",
@@ -160,7 +165,7 @@ object WeeklyReviewEngine {
                         type = InsightType.POSITIVE
                     )
                 )
-            } else if (avgQuality <= 0.4f) {
+            } else if (normalizedQuality <= 0.4f) {
                 insights.add(
                     Insight(
                         title = "AI 产出质量偏低",

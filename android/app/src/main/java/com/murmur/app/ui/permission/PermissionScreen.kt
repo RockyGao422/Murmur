@@ -1,7 +1,5 @@
 package com.murmur.app.ui.permission
 
-import android.app.usage.UsageStatsManager
-import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.ExperimentalLayoutApi

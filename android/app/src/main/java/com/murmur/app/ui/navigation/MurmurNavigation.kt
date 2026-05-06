@@ -1,9 +1,6 @@
 package com.murmur.app.ui.navigation
 
-import android.app.usage.UsageStatsManager
 import android.content.Context
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,7 +13,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -52,7 +48,10 @@ object Routes {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MurmurNavigation() {
+fun MurmurNavigation(
+    initialRoute: String? = null,
+    onInitialRouteConsumed: () -> Unit = {}
+) {
     val navController = rememberNavController()
     val context = LocalContext.current
 
@@ -90,8 +89,23 @@ fun MurmurNavigation() {
         Screen.Tools,
         Screen.Settings
     )
+    val bottomNavRoutes = bottomNavScreens.map { it.route }
 
-    val showBottomBar = currentRoute in bottomNavScreens.map { it.route }
+    LaunchedEffect(hasPermission, initialRoute) {
+        val targetRoute = initialRoute
+        if (hasPermission && targetRoute != null && targetRoute in bottomNavRoutes) {
+            navController.navigate(targetRoute) {
+                popUpTo(Screen.Today.route) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
+            }
+            onInitialRouteConsumed()
+        }
+    }
+
+    val showBottomBar = currentRoute in bottomNavRoutes
 
     Scaffold(
         bottomBar = {

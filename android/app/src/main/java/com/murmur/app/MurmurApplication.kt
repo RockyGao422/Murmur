@@ -8,6 +8,7 @@ import androidx.work.*
 import com.murmur.app.data.local.AppDatabase
 import com.murmur.app.data.repository.SettingsRepository
 import com.murmur.app.data.repository.ToolRepository
+import com.murmur.app.notification.NotificationHelper
 import com.murmur.app.worker.DetectionWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ class MurmurApplication : Application() {
 
         // Create notification channel
         createNotificationChannel()
+        NotificationHelper.createNotificationChannels(this)
 
         // Initialize data
         applicationScope.launch {

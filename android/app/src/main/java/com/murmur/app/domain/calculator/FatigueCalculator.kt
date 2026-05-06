@@ -52,13 +52,18 @@ object FatigueCalculator {
 
         // 4. Quality component (only if we have entries)
         val qualityComponent = if (entries.isNotEmpty()) {
-            val avgQuality = entries.map { it.quality.qualityScore.toFloat() }.average().toFloat()
-            minOf(((1.0f - avgQuality) * 20).toInt(), MAX_QUALITY_COMPONENT)
+            val avgQuality = entries
+                .map { it.quality.qualityScore.toFloat() }
+                .average()
+                .toFloat()
+                .coerceIn(1.0f, 4.0f)
+            val qualityFatigueRatio = ((4.0f - avgQuality) / 3.0f).coerceIn(0.0f, 1.0f)
+            (qualityFatigueRatio * MAX_QUALITY_COMPONENT).toInt()
         } else {
             0
         }
 
         val total = sessionComponent + durationComponent + reworkComponent + qualityComponent
-        return minOf(total, MAX_TOTAL)
+        return total.coerceIn(0, MAX_TOTAL)
     }
 }

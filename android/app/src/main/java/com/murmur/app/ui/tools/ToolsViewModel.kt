@@ -90,6 +90,18 @@ class ToolsViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateToolPackages(id: String, packageNames: List<String>) {
+        viewModelScope.launch {
+            val tool = toolRepo.getById(id) ?: return@launch
+            toolRepo.updateTool(
+                tool.copy(
+                    androidPackageNames = packageNames,
+                    aliases = if (tool.aliases.isEmpty()) listOf(tool.name) else tool.aliases
+                )
+            )
+        }
+    }
+
     private fun filterTools(tools: List<ToolCatalogItem>, query: String): List<ToolCatalogItem> {
         if (query.isBlank()) return tools
         val lowerQuery = query.lowercase()

@@ -1,8 +1,10 @@
 package com.murmur.app.ui.settings
 
-import android.app.usage.UsageStatsManager
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,11 +21,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.murmur.app.R
 import com.murmur.app.ui.navigation.hasUsageStatsPermission
-import com.murmur.app.export.CSVExporter
 
 @Composable
 fun SettingsScreen(
@@ -61,6 +63,29 @@ fun SettingsScreen(
             } catch (e: Exception) {
                 Toast.makeText(context, "导出失败: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        viewModel.setNotificationsEnabled(granted)
+    }
+
+    val hasNotificationPermission =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+    val onNotificationsChanged: (Boolean) -> Unit = { enabled ->
+        if (enabled &&
+            !hasNotificationPermission
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.setNotificationsEnabled(enabled)
         }
     }
 
@@ -168,8 +193,8 @@ fun SettingsScreen(
             SettingsSwitchItem(
                 title = "待补全提醒",
                 subtitle = "定时提醒补全检测到的 AI 会话",
-                checked = uiState.notificationsEnabled,
-                onCheckedChange = { viewModel.setNotificationsEnabled(it) }
+                checked = uiState.notificationsEnabled && hasNotificationPermission,
+                onCheckedChange = onNotificationsChanged
             )
         }
 

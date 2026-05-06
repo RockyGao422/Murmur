@@ -2,7 +2,6 @@ package com.murmur.app.ui.tools
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -15,8 +14,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.murmur.app.R
-import com.murmur.app.ui.components.SessionCard
-import com.murmur.app.domain.model.DetectedSession
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -212,8 +209,12 @@ fun ToolDetailScreen(
             },
             confirmButton = {
                 Button(onClick = {
+                    val packageNames = editedPackages
+                        .split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                    tool?.let { viewModel.updateToolPackages(it.id, packageNames) }
                     isEditingPackages = false
-                    // Note: In a full implementation, this would update the tool entity
                 }) {
                     Text(stringResource(R.string.common_confirm))
                 }

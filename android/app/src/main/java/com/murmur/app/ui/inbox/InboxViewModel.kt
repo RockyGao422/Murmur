@@ -37,14 +37,13 @@ class InboxViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             sessionRepo.getPendingSessions().collect { sessions ->
                 val sorted = sessions.sortedByDescending { it.startedAt }
-                val grouped = sorted.groupBy { it.localDate }
-
                 val suspected = sorted.filter {
                     it.status == SessionStatus.SUSPECTED || it.confidence < 0.6f
                 }
                 val confirmed = sorted.filter {
                     it.status != SessionStatus.SUSPECTED && it.confidence >= 0.6f
                 }
+                val grouped = confirmed.groupBy { it.localDate }
 
                 // Check for merge suggestions
                 val mergeSuggestion = findMergeSuggestion(confirmed)

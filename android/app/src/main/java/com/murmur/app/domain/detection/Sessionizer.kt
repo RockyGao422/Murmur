@@ -6,7 +6,6 @@ import com.murmur.app.domain.model.*
 import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
 
@@ -117,7 +116,7 @@ class Sessionizer(context: Context) {
                 val zoneId = ZoneId.systemDefault()
                 val startInstant = Instant.ofEpochMilli(startedAt)
                 val localDate = LocalDate.ofInstant(startInstant, zoneId).toString()
-                val hour = LocalTime.ofInstant(startInstant, zoneId).hour
+                val hour = startInstant.atZone(zoneId).toLocalTime().hour
                 val isNight = hour >= 22 || hour < 6
 
                 val canonicalId = UUID.randomUUID().toString()
@@ -322,7 +321,7 @@ class Sessionizer(context: Context) {
     }
 
     private fun isNightHour(zoneId: ZoneId, epochMs: Long): Boolean {
-        val hour = LocalTime.ofInstant(Instant.ofEpochMilli(epochMs), zoneId).hour
+        val hour = Instant.ofEpochMilli(epochMs).atZone(zoneId).toLocalTime().hour
         return hour >= 22 || hour < 6
     }
 

@@ -7,6 +7,8 @@ import com.murmur.app.data.local.AppDatabase
 import com.murmur.app.data.repository.LedgerRepository
 import com.murmur.app.data.repository.SessionRepository
 import com.murmur.app.data.repository.SettingsRepository
+import com.murmur.app.data.repository.ToolRepository
+import com.murmur.app.domain.detection.Sessionizer
 import com.murmur.app.export.CSVExporter
 import com.murmur.app.export.MarkdownExporter
 import kotlinx.coroutines.flow.*
@@ -31,6 +33,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val database = AppDatabase.getInstance(application)
     private val settingsRepo = SettingsRepository(application)
     private val sessionRepo = SessionRepository(database.detectedSessionDao())
+    private val toolRepo = ToolRepository(database.toolCatalogDao(), application)
     private val ledgerRepo = LedgerRepository(
         database.ledgerEntryDao(),
         database.detectedSessionDao(),
@@ -68,6 +71,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             settingsRepo.foregroundServiceEnabled.collect { enabled ->
                 _uiState.update { it.copy(foregroundServiceEnabled = enabled) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepo.notificationsEnabled.collect { enabled ->
+                _uiState.update { it.copy(notificationsEnabled = enabled) }
             }
         }
     }
@@ -186,6 +195,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 database.toolCatalogDao().deleteAll()
                 database.dailySummaryDao().deleteAll()
                 settingsRepo.clearAllSettings()
+                Sessionizer(getApplication()).saveOpenForegroundState(null)
+                toolRepo.seedDefaultCatalog()
                 _uiState.update { it.copy(isClearing = false, showClearDialog = false) }
             } catch (e: Exception) {
                 _uiState.update { it.copy(isClearing = false, showClearDialog = false) }

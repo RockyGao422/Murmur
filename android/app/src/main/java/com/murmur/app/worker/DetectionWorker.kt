@@ -10,6 +10,8 @@ import com.murmur.app.data.repository.ToolRepository
 import com.murmur.app.domain.detection.Sessionizer
 import com.murmur.app.domain.detection.ToolMatcher
 import com.murmur.app.domain.detection.UsageEventsDetector
+import com.murmur.app.domain.model.SessionStatus
+import com.murmur.app.notification.NotificationHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -87,6 +89,22 @@ class DetectionWorker(
             if (sessions.isNotEmpty()) {
                 sessionRepo.upsertSessions(sessions)
                 Log.d(TAG, "Detected ${sessions.size} new sessions")
+
+                val detectedPendingCount = sessions.count {
+                    it.status == SessionStatus.PENDING || it.status == SessionStatus.SUSPECTED
+                }
+                val reminderCount = database.detectedSessionDao().getPendingCount()
+                val notificationsEnabled = settingsRepo.notificationsEnabled.first()
+                val now = LocalDateTime.now()
+                val nightHoursStart = settingsRepo.nightHoursStart.first()
+                val nightHoursEnd = settingsRepo.nightHoursEnd.first()
+                if (detectedPendingCount > 0 &&
+                    reminderCount > 0 &&
+                    notificationsEnabled &&
+                    !isWithinNightHours(now.hour, nightHoursStart, nightHoursEnd)
+                ) {
+                    NotificationHelper.showPendingReminder(appContext, reminderCount)
+                }
             }
 
             // Update last processed timestamp
@@ -100,6 +118,14 @@ class DetectionWorker(
             } else {
                 Result.failure()
             }
+        }
+    }
+
+    private fun isWithinNightHours(hour: Int, start: Int, end: Int): Boolean {
+        return if (start < end) {
+            hour in start until end
+        } else {
+            hour >= start || hour < end
         }
     }
 

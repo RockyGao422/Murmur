@@ -16,6 +16,9 @@ interface DetectedSessionDao {
     @Query("SELECT * FROM detected_sessions WHERE status = 'pending' OR status = 'suspected' ORDER BY started_at DESC")
     fun getPendingSessions(): Flow<List<DetectedSessionEntity>>
 
+    @Query("SELECT COUNT(*) FROM detected_sessions WHERE status = 'pending' OR status = 'suspected'")
+    suspend fun getPendingCount(): Int
+
     @Query("SELECT * FROM detected_sessions WHERE status = :status ORDER BY started_at DESC")
     fun getSessionsByStatus(status: String): Flow<List<DetectedSessionEntity>>
 

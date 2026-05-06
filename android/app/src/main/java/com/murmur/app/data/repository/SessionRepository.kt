@@ -57,6 +57,14 @@ class SessionRepository(private val dao: DetectedSessionDao) {
         if (!fingerprint.isNullOrEmpty()) {
             val existing = dao.getByFingerprint(fingerprint)
             if (existing != null) {
+                val existingStatus = SessionStatus.fromString(existing.status)
+                if (existingStatus == SessionStatus.COMPLETED ||
+                    existingStatus == SessionStatus.IGNORED ||
+                    existingStatus == SessionStatus.MERGED
+                ) {
+                    return@withContext existing.id
+                }
+
                 // Update existing session with any new data
                 dao.update(
                     existing.copy(

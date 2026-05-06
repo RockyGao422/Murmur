@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.murmur.app.R
-import com.murmur.app.domain.model.ConfidenceLevel
 import com.murmur.app.ui.components.ConfidenceChip
 
 @OptIn(ExperimentalMaterial3Api::class)

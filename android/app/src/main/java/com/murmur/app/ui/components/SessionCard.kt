@@ -109,13 +109,15 @@ private fun StatusChip(text: String, color: androidx.compose.ui.graphics.Color) 
 }
 
 fun formatDuration(seconds: Long): String {
+    val sign = if (seconds < 0) "-" else ""
+    val absoluteSeconds = if (seconds == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(seconds)
     return when {
-        seconds < 60 -> "${seconds}秒"
-        seconds < 3600 -> "${seconds / 60}分钟"
+        absoluteSeconds < 60 -> "$sign${absoluteSeconds}秒"
+        absoluteSeconds < 3600 -> "$sign${absoluteSeconds / 60}分钟"
         else -> {
-            val hours = seconds / 3600
-            val minutes = (seconds % 3600) / 60
-            "${hours}小时${minutes}分钟"
+            val hours = absoluteSeconds / 3600
+            val minutes = (absoluteSeconds % 3600) / 60
+            "$sign${hours}小时${minutes}分钟"
         }
     }
 }

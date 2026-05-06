@@ -6,13 +6,63 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 平台 | 构建 | 检查 | 测试 |
 |------|------|------|------|
-| **browser-extension** | `npm run build`（复制到 `dist/`） | `npm run lint` | 无测试 |
+| **browser-extension** | `npm run build`（复制到 `dist/`） | `npm run lint`（目前与 build 相同，无独立 linter） | 无测试 |
 | **android** | 先生成 wrapper：`gradle wrapper`，然后 `./gradlew assembleDebug` | `./gradlew lint` | `./gradlew testDebugUnitTest` |
 | **macos** | 无构建系统（无 `.xcodeproj` 和 `Package.swift`） | 无 | 无 |
 
-- 浏览器扩展是最成熟的平台，也是唯一有完整构建流程的平台。
+- 浏览器扩展有完整的 `npm run build` → `dist/` 构建流程，产物可直接加载为 Chrome 扩展。
 - Android 未提交 `gradlew`，需在 `android/` 目录先执行 `gradle wrapper`。
-- macOS 有 39 个 Swift 源文件但没有 Xcode 工程，无法从命令行构建。
+- macOS 有 39 个 Swift 源文件但没有 Xcode 工程，无法从命令行构建。唯一构建方式是通过 Xcode GUI。
+
+## Android 修复记录（2026-05-07）
+
+本轮修复目标：排除 APK 发布工程事项后，修复 Android 端会影响真实使用的系统 bug。修复内容如下：
+
+1. **Today 页构建兼容性**
+   - 移除 `androidx.compose.material3.pulltorefresh.PullToRefreshBox`，避免当前 Material3 版本下可能无法编译。
+   - 在检测状态卡保留手动刷新按钮，继续调用 `TodayViewModel.refresh()`。
+
+2. **疲劳指数与质量洞察**
+   - `FatigueCalculator` 将 `qualityScore` 从 1-4 正确归一化到 0-1，再计算质量疲劳分。
+   - 最终疲劳指数强制 `0..100`，避免高质量记录导致负数。
+   - `WeeklyReviewEngine` 同步修复质量阈值判断，避免几乎所有记录都被误判为“产出质量高”。
+
+3. **检测去重不覆盖终态**
+   - `SessionRepository.upsertByFingerprint()` 遇到既有 `completed / ignored / merged` 会话时直接保留原记录。
+   - 防止 WorkManager 的重叠检测窗口把用户已补全或已忽略的会话改回 `pending / suspected`。
+
+4. **通知提醒链路**
+   - `MurmurApplication` 创建 `NotificationHelper` 使用的 pending/detection channel。
+   - `DetectionWorker` 在检测到新的待补全会话后，根据通知开关和夜间时段决定是否触发待补全提醒。
+   - `SettingsScreen` 在 Android 13+ 开启提醒时请求 `POST_NOTIFICATIONS` 运行时权限。
+   - `MainActivity` / `MurmurNavigation` 处理通知中的 `navigate_to=inbox`，点击提醒可进入待补全页。
+
+5. **清空数据后的恢复**
+   - `SettingsViewModel.clearAllData()` 清空数据库和设置后立即重新 seed 默认 tool catalog。
+   - 避免用户清空数据后工具目录为空，导致后续自动检测无法匹配任何 AI App。
+   - 同时清理 `Sessionizer` 持久化的 open foreground state，避免清空后又用旧前台状态生成历史会话。
+
+6. **待补全页重复展示**
+   - `InboxViewModel` 将疑似会话只放在疑似区，确认会话才进入日期分组。
+   - 避免同一 `suspected` session 在待补全页出现两遍。
+
+7. **工具包名编辑**
+   - `ToolDetailScreen` 的包名编辑确认按钮现在会调用 `ToolsViewModel.updateToolPackages()` 写回 Room。
+   - 原先只是关闭弹窗，属于假保存。
+
+8. **负时长显示**
+   - `formatDuration()` 支持负数，净收益为负时显示为 `-x分钟 / -x小时x分钟`，而不是落入“秒”分支。
+
+9. **隐私与备份文案对齐**
+   - Android Manifest 将 `android:allowBackup` 调整为 `false`。
+   - 与应用内“数据仅保存在本地、不上传云端”的隐私说明保持一致，避免系统云备份造成预期外的数据外流。
+
+本轮仍未完成真实 Gradle 构建验证：仓库未提交 `gradlew`，当前环境也没有可用全局 `gradle`。补齐 wrapper 后请优先执行：
+
+```bash
+cd android
+./gradlew :app:lintDebug :app:assembleDebug
+```
 
 ## 高层架构
 
@@ -35,10 +85,16 @@ Detector（OS 事件）→ ToolMatcher（工具目录匹配）→ Sessionizer（
 ```
 
 **数据契约**（`shared/schemas/*.json`）：
+- `RawEvent` — 平台检测器原始事件，在工具匹配和会话化之前的中间表示
 - `DetectedSession` — 自动检测到的 AI 使用（工具、平台、时间戳、置信度）
 - `LedgerEntry` — 用户补全后的记录（用途、时间分解、质量、感受）
 - `ToolCatalogItem` — 已知 AI 工具定义，含各平台匹配规则
 - `tool-catalog.json` — 17 个默认 AI 工具（bundle ID、package name、域名）
+- `browser-exclusion-list.json` — 各平台浏览器 bundle ID / package name 列表，防止浏览器被误识别为 AI 工具
+
+**共享测试夹具**（`shared/fixtures/*.json`）：
+- `detected_sessions.json` / `ledger_entries.json` — 跨平台计算器测试的输入数据
+- `expected_daily_summary.json` / `expected_fatigue_scores.json` / `expected_weekly_review.json` — 计算器预期输出
 
 各平台**手动镜像**这些 schema 到原生类型（Swift struct / Kotlin data class / JSDoc typedef）。没有代码生成，`grep` 是唯一找到所有字段引用点的方法。
 
@@ -47,10 +103,18 @@ Detector（OS 事件）→ ToolMatcher（工具目录匹配）→ Sessionizer（
 - Android：Room SQLite 数据库
 - 浏览器扩展：`chrome.storage.local`
 
+**跨端通信（Extension ↔ macOS）：**
+- 浏览器扩展通过 Chrome Native Messaging 将检测到的网页 AI 会话发送到 macOS 主 App
+- macOS 端：`NativeMessagingHost.swift`（Stdio transport）、`ImportQueueService.swift`（去重写入）、`ManifestInstaller.swift`（安装 NM manifest）
+- 浏览器扩展端：`native-messaging.js`（连接管理和消息序列化）
+- 通信协议使用 JSON 消息，扩展端主动连接 → macOS host 响应
+
 **关键不变量：**
 - 字段名、枚举值、单位必须跨三端及 shared schemas 保持一致
 - 时间单位统一为**分钟**（`estimated_saved_minutes`），不可用秒或小时
 - 隐私：不读取 prompt 内容、不保存 AI 输出、不截图、不监听键盘
+
+**审查历史参考：** `docs/` 目录下有完整的代码审查报告链（从初版审查到第七轮修复 + 跨平台聚合），当遇到历史 bug 模式时可参考对应阶段的修复报告。
 
 ## 第一性原理
 

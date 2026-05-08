@@ -115,7 +115,7 @@ class Sessionizer(context: Context) {
                 val now = System.currentTimeMillis()
                 val zoneId = ZoneId.systemDefault()
                 val startInstant = Instant.ofEpochMilli(startedAt)
-                val localDate = LocalDate.ofInstant(startInstant, zoneId).toString()
+                val localDate = startInstant.atZone(zoneId).toLocalDate().toString()
                 val hour = startInstant.atZone(zoneId).toLocalTime().hour
                 val isNight = hour >= 22 || hour < 6
 
@@ -266,8 +266,8 @@ class Sessionizer(context: Context) {
             val startInstant = Instant.ofEpochMilli(session.startedAt)
             val endInstant = Instant.ofEpochMilli(session.endedAt)
             val zoneId = ZoneId.of(session.timezone)
-            val startDate = LocalDate.ofInstant(startInstant, zoneId)
-            val endDate = LocalDate.ofInstant(endInstant, zoneId)
+            val startDate = startInstant.atZone(zoneId).toLocalDate()
+            val endDate = endInstant.atZone(zoneId).toLocalDate()
 
             if (startDate == endDate) {
                 result.add(session)

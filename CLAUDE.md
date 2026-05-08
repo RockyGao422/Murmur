@@ -14,50 +14,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Android 未提交 `gradlew`，需在 `android/` 目录先执行 `gradle wrapper`。
 - macOS 有 39 个 Swift 源文件但没有 Xcode 工程，无法从命令行构建。唯一构建方式是通过 Xcode GUI。
 
-## Android 修复记录（2026-05-07）
+## Android 近期修复摘要（2026-05-07）
 
-本轮修复目标：排除 APK 发布工程事项后，修复 Android 端会影响真实使用的系统 bug。修复内容如下：
+已修复 Android 端 9 项系统级 bug，主要模式：去重不覆盖终态（`upsertByFingerprint` 保留 completed/ignored/merged）、清空数据后重新 seed tool catalog、`suspected` 会话不与 confirmed 会话混排、`formatDuration` 支持负值、`allowBackup=false` 与隐私说明对齐。详情见 `git log`。
 
-1. **Today 页构建兼容性**
-   - 移除 `androidx.compose.material3.pulltorefresh.PullToRefreshBox`，避免当前 Material3 版本下可能无法编译。
-   - 在检测状态卡保留手动刷新按钮，继续调用 `TodayViewModel.refresh()`。
-
-2. **疲劳指数与质量洞察**
-   - `FatigueCalculator` 将 `qualityScore` 从 1-4 正确归一化到 0-1，再计算质量疲劳分。
-   - 最终疲劳指数强制 `0..100`，避免高质量记录导致负数。
-   - `WeeklyReviewEngine` 同步修复质量阈值判断，避免几乎所有记录都被误判为“产出质量高”。
-
-3. **检测去重不覆盖终态**
-   - `SessionRepository.upsertByFingerprint()` 遇到既有 `completed / ignored / merged` 会话时直接保留原记录。
-   - 防止 WorkManager 的重叠检测窗口把用户已补全或已忽略的会话改回 `pending / suspected`。
-
-4. **通知提醒链路**
-   - `MurmurApplication` 创建 `NotificationHelper` 使用的 pending/detection channel。
-   - `DetectionWorker` 在检测到新的待补全会话后，根据通知开关和夜间时段决定是否触发待补全提醒。
-   - `SettingsScreen` 在 Android 13+ 开启提醒时请求 `POST_NOTIFICATIONS` 运行时权限。
-   - `MainActivity` / `MurmurNavigation` 处理通知中的 `navigate_to=inbox`，点击提醒可进入待补全页。
-
-5. **清空数据后的恢复**
-   - `SettingsViewModel.clearAllData()` 清空数据库和设置后立即重新 seed 默认 tool catalog。
-   - 避免用户清空数据后工具目录为空，导致后续自动检测无法匹配任何 AI App。
-   - 同时清理 `Sessionizer` 持久化的 open foreground state，避免清空后又用旧前台状态生成历史会话。
-
-6. **待补全页重复展示**
-   - `InboxViewModel` 将疑似会话只放在疑似区，确认会话才进入日期分组。
-   - 避免同一 `suspected` session 在待补全页出现两遍。
-
-7. **工具包名编辑**
-   - `ToolDetailScreen` 的包名编辑确认按钮现在会调用 `ToolsViewModel.updateToolPackages()` 写回 Room。
-   - 原先只是关闭弹窗，属于假保存。
-
-8. **负时长显示**
-   - `formatDuration()` 支持负数，净收益为负时显示为 `-x分钟 / -x小时x分钟`，而不是落入“秒”分支。
-
-9. **隐私与备份文案对齐**
-   - Android Manifest 将 `android:allowBackup` 调整为 `false`。
-   - 与应用内“数据仅保存在本地、不上传云端”的隐私说明保持一致，避免系统云备份造成预期外的数据外流。
-
-本轮仍未完成真实 Gradle 构建验证：仓库未提交 `gradlew`，当前环境也没有可用全局 `gradle`。补齐 wrapper 后请优先执行：
+仍未完成真实 Gradle 构建验证：仓库未提交 `gradlew`，当前环境也没有可用全局 `gradle`。补齐 wrapper 后请优先执行：
 
 ```bash
 cd android

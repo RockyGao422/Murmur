@@ -8,6 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 class ToolRepository(
@@ -15,6 +18,7 @@ class ToolRepository(
     private val context: Context
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+    private val stringListSerializer = ListSerializer(String.serializer())
 
     fun getAll(): Flow<List<ToolCatalogItem>> {
         return dao.getAll().map { entities ->
@@ -74,19 +78,19 @@ class ToolRepository(
                     id = tool.id,
                     name = tool.name,
                     aliasesJson = json.encodeToString(
-                        kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                        stringListSerializer,
                         tool.aliases
                     ),
                     androidPackageNamesJson = json.encodeToString(
-                        kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                        stringListSerializer,
                         tool.android_package_names
                     ),
                     webDomainsJson = json.encodeToString(
-                        kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                        stringListSerializer,
                         tool.web_domains
                     ),
                     urlPatternsJson = json.encodeToString(
-                        kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                        stringListSerializer,
                         tool.url_patterns
                     ),
                     defaultEnabled = tool.default_enabled,
@@ -136,19 +140,19 @@ class ToolRepository(
             id = id,
             name = name,
             aliasesJson = json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                stringListSerializer,
                 aliases
             ),
             androidPackageNamesJson = json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                stringListSerializer,
                 androidPackageNames
             ),
             webDomainsJson = json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                stringListSerializer,
                 webDomains
             ),
             urlPatternsJson = json.encodeToString(
-                kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                stringListSerializer,
                 urlPatterns
             ),
             defaultEnabled = defaultEnabled,
@@ -168,7 +172,7 @@ class ToolRepository(
     private fun parseJsonList(jsonStr: String): List<String> {
         return try {
             json.decodeFromString(
-                kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer<String>()),
+                stringListSerializer,
                 jsonStr
             )
         } catch (e: Exception) {
@@ -178,7 +182,7 @@ class ToolRepository(
 }
 
 // JSON parsing structures for the tool catalog file
-@kotlinx.serialization.Serializable
+@Serializable
 data class ToolCatalogJson(
     val version: String,
     val updated_at: String,
@@ -186,7 +190,7 @@ data class ToolCatalogJson(
     val tools: List<ToolJson>
 )
 
-@kotlinx.serialization.Serializable
+@Serializable
 data class ToolJson(
     val id: String,
     val name: String,
@@ -205,7 +209,7 @@ data class ToolJson(
     val confidence: ToolConfidenceJson
 )
 
-@kotlinx.serialization.Serializable
+@Serializable
 data class ToolConfidenceJson(
     val bundle_id: Float = 0.98f,
     val package_name: Float = 0.98f,
